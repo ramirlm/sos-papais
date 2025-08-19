@@ -22,7 +22,9 @@
     "typeorm:run": "./run-migration.sh"
   },
   "dependencies": {
+    "@google/genai": "^1.15.0",
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.0",
