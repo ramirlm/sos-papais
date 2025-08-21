@@ -5,8 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { KnowledgesModule } from './knowledges/knowledges.module';
 import { KnowledgesService } from './knowledges/knowledges.service';
 import { EmbeddingService } from './embedding/embedding.service';
-import { ConfigModule } from '@nestjs/config';
-import { GeminiAiService } from './gemini-ai/gemini-ai.service';
+import { OllamaAiService } from './ollama-ai/ollama-ai.service';
 import 'dotenv/config';
 
 @Module({
@@ -17,12 +16,9 @@ import 'dotenv/config';
       autoLoadEntities: true,
       logging: true,
     }),
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
     KnowledgesModule,
   ],
   controllers: [AppController],
-  providers: [AppService, KnowledgesService, EmbeddingService, GeminiAiService],
+  providers: [AppService, KnowledgesService, EmbeddingService, OllamaAiService],
 })
 export class AppModule {}
