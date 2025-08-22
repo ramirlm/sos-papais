@@ -7,6 +7,9 @@ import { KnowledgesService } from './knowledges/knowledges.service';
 import { EmbeddingService } from './embedding/embedding.service';
 import { OllamaAiService } from './ollama-ai/ollama-ai.service';
 import { KnowledgeEmbeddingService } from './embedding/knowledge-embedding/knowledge-embedding.service';
+import { WhatsappWebService } from './whatsapp-web/whatsapp-web.service';
+import { MessageHandlerService } from './message-handler/message-handler.service';
+import { ConfigModule } from '@nestjs/config';
 import 'dotenv/config';
 
 @Module({
@@ -17,6 +20,9 @@ import 'dotenv/config';
       autoLoadEntities: true,
       logging: true,
     }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     KnowledgesModule,
   ],
   controllers: [AppController],
@@ -26,6 +32,8 @@ import 'dotenv/config';
     EmbeddingService,
     OllamaAiService,
     KnowledgeEmbeddingService,
+    WhatsappWebService,
+    MessageHandlerService,
   ],
 })
 export class AppModule {}
