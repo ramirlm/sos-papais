@@ -10,6 +10,7 @@ import { KnowledgeEmbeddingService } from './embedding/knowledge-embedding/knowl
 import { WhatsappWebService } from './whatsapp-web/whatsapp-web.service';
 import { MessageHandlerService } from './message-handler/message-handler.service';
 import { ConfigModule } from '@nestjs/config';
+import { ParentsModule } from './parents/parents.module';
 import 'dotenv/config';
 
 @Module({
@@ -24,6 +25,7 @@ import 'dotenv/config';
       isGlobal: true,
     }),
     KnowledgesModule,
+    ParentsModule,
   ],
   controllers: [AppController],
   providers: [
