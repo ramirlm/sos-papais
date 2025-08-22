@@ -6,6 +6,7 @@ import { KnowledgesModule } from './knowledges/knowledges.module';
 import { KnowledgesService } from './knowledges/knowledges.service';
 import { EmbeddingService } from './embedding/embedding.service';
 import { OllamaAiService } from './ollama-ai/ollama-ai.service';
+import { KnowledgeEmbeddingService } from './embedding/knowledge-embedding/knowledge-embedding.service';
 import 'dotenv/config';
 
 @Module({
@@ -19,6 +20,12 @@ import 'dotenv/config';
     KnowledgesModule,
   ],
   controllers: [AppController],
-  providers: [AppService, KnowledgesService, EmbeddingService, OllamaAiService],
+  providers: [
+    AppService,
+    KnowledgesService,
+    EmbeddingService,
+    OllamaAiService,
+    KnowledgeEmbeddingService,
+  ],
 })
 export class AppModule {}
