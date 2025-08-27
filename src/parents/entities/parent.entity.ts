@@ -1,12 +1,12 @@
+import { Child } from '../../children/entities/child.entity';
 import { Menu } from '../../menus/entities/menu.entity';
 import { Option } from '../../menus/entities/option.entity';
 import {
   Column,
   Entity,
   JoinColumn,
-  JoinTable,
-  ManyToMany,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -26,6 +26,13 @@ export class Parent {
   @Column()
   createdAt: Date;
 
+  @OneToMany(() => Child, (child) => child.parent, { cascade: true })
+  children: Child[];
+
+  @OneToOne(() => Child, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  currentChild: Child | null;
+
   @Column({ nullable: true })
   name: string;
 
@@ -36,4 +43,7 @@ export class Parent {
   @ManyToOne(() => Menu, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()
   currentMenu: Menu | null;
+
+  @Column({ nullable: true })
+  conversationState?: string;
 }

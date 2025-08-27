@@ -11,7 +11,6 @@ export class MessageHandlerService {
   constructor(
     @Inject(forwardRef(() => WhatsappWebService))
     private readonly whatsappClient: WhatsappWebService,
-    private readonly ollamaAiService: OllamaAiService,
     private readonly parentsService: ParentsService,
     private readonly menusService: MenusService,
   ) {}
@@ -40,7 +39,7 @@ export class MessageHandlerService {
     await this.parentsService.updateName(phoneNumber, name);
     this.whatsappClient.sendWhatsAppMessage(
       phoneNumber,
-      `Obrigado por compartilhar seu nome, ${name}! Como posso ajudar você hoje?`,
+      `Obrigado por compartilhar seu nome, ${name}! Seja bem-vindo ao SOS Papais! Se precisar de ajuda, é só chamar!`,
     );
   }
 
@@ -62,7 +61,7 @@ export class MessageHandlerService {
       if (!chosenOption)
         return this.whatsappClient.sendWhatsAppMessage(
           parent.phoneNumber,
-          `Desculpe, a opção escolhida não é válida.\n\nSelecione uma opção válida.\n${currentMenu.options.map((opt, index) => `\n${index + 1}. ${opt.label}`).join('')}
+          `Desculpe, a opção escolhida não é válida.\n\nCriança: ${parent.currentChild?.name || 'não selecionada'}\n\nSelecione uma opção válida.\n\n${currentMenu.options.map((opt, index) => `${index + 1}. ${opt.label}${index === currentMenu.options.length - 1 ? '' : '\n'}`).join('')}
         `,
         );
     }
@@ -88,7 +87,7 @@ export class MessageHandlerService {
 
     await this.whatsappClient.sendWhatsAppMessage(
       parent.phoneNumber,
-      `Olá, ${parent.name}!\n\nComo posso te ajudar hoje?\n${initialMenu.options.map((opt, index) => `\n${index + 1}. ${opt.label}`).join('')}
+      `Olá, ${parent.name}!\n\nComo posso te ajudar hoje?\n\nCriança: ${parent.currentChild?.name || 'não selecionada'}\n\n${initialMenu.options.map((opt, index) => `${index + 1}. ${opt.label}${index === initialMenu.options.length - 1 ? '' : '\n'}`).join('')}
       `,
     );
 
