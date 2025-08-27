@@ -1,4 +1,15 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Menu } from '../../menus/entities/menu.entity';
+import { Option } from '../../menus/entities/option.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class Parent {
@@ -18,15 +29,11 @@ export class Parent {
   @Column({ nullable: true })
   name: string;
 
-  @Column({ nullable: true })
-  conversationState: string;
+  @OneToOne(() => Option, { nullable: true })
+  @JoinColumn()
+  lastChosenOption: Option | null;
 
-  @Column({ nullable: true })
-  lastMessage?: string;
-
-  @Column({ nullable: true })
-  lastChosenOption?: string;
-
-  @Column({ nullable: true })
-  menuState: string;
+  @ManyToOne(() => Menu, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  currentMenu: Menu | null;
 }

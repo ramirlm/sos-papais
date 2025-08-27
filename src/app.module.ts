@@ -11,6 +11,7 @@ import { WhatsappWebService } from './whatsapp-web/whatsapp-web.service';
 import { MessageHandlerService } from './message-handler/message-handler.service';
 import { ConfigModule } from '@nestjs/config';
 import { ParentsModule } from './parents/parents.module';
+import { MenusModule } from './menus/menus.module';
 import 'dotenv/config';
 
 @Module({
@@ -19,13 +20,14 @@ import 'dotenv/config';
       type: 'postgres',
       url: process.env.DATABASE_URL,
       autoLoadEntities: true,
-      logging: true,
+      logging: false,
     }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
     KnowledgesModule,
     ParentsModule,
+    MenusModule,
   ],
   controllers: [AppController],
   providers: [
