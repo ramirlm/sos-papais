@@ -1,33 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { pipeline } from '@xenova/transformers';
 
 @Injectable()
 export class EmbeddingService {
+  private readonly logger = new Logger(EmbeddingService.name);
+  private embedder: any;
+
+  // Modelo pode ser facilmente trocado aqui
+  private readonly modelName = 'Xenova/bge-small-en-v1.5';
+
   constructor() {
     this.init();
   }
 
-  private embedder: any;
-
   async init() {
     if (!this.embedder) {
-      console.log('🔄 Loading embedding model...');
-      this.embedder = await pipeline(
-        'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2',
-      );
-      console.log('✅ Model loaded!');
+      this.logger.log(`🔄 Carregando modelo de embeddings: ${this.modelName}`);
+      try {
+        this.embedder = await pipeline('feature-extraction', this.modelName);
+        this.logger.log('✅ Modelo de embeddings carregado com sucesso!');
+      } catch (error) {
+        this.logger.error('❌ Erro ao carregar o modelo de embeddings', error);
+        throw error;
+      }
     }
   }
 
-  async generateEmbedding(text: string): Promise<number[]> {
+  // Função para formatar texto curto (importante para queries curtas!)
+  private wrapText(text: string): string {
+    return `Representação semântica: ${text}`;
+  }
+
+  async generateEmbedding(rawText: string): Promise<number[]> {
     await this.init();
 
-    const output = await this.embedder(text, {
-      pooling: 'mean',
-      normalize: true,
-    });
+    const text = this.wrapText(rawText);
 
-    return Array.from(output.data);
+    try {
+      const output = await this.embedder(text, {
+        pooling: 'mean',
+        normalize: true,
+      });
+
+      return Array.from(output.data);
+    } catch (error) {
+      this.logger.error('❌ Erro ao gerar embedding', error);
+      throw error;
+    }
   }
 }
