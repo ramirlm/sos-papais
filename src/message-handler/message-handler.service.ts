@@ -2,6 +2,9 @@ import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { OllamaAiService } from '../ollama-ai/ollama-ai.service';
 import { WhatsappWebService } from '../whatsapp-web/whatsapp-web.service';
 import { ParentsService } from '../parents/parents.service';
+import { Parent } from '../parents/entities/parent.entity';
+import { MenusService } from '../menus/menus.service';
+import { Option } from '../menus/entities/option.entity';
 
 @Injectable()
 export class MessageHandlerService {
@@ -10,6 +13,7 @@ export class MessageHandlerService {
     private readonly whatsappClient: WhatsappWebService,
     private readonly ollamaAiService: OllamaAiService,
     private readonly parentsService: ParentsService,
+    private readonly menusService: MenusService,
   ) {}
 
   async handleIncomingMessage(incomingMessage: { from: string; body: string }) {
@@ -21,8 +25,7 @@ export class MessageHandlerService {
     if (!parent) return this.handleNotFoundParent(userPhoneNumber);
     if (!parent.name) return this.handleParentName(userPhoneNumber, body);
 
-    const response = await this.ollamaAiService.generateResponse(body);
-    await this.whatsappClient.sendWhatsAppMessage(userPhoneNumber, response);
+    this.handleConversation(parent, body);
   }
 
   async handleNotFoundParent(phoneNumber: string) {
@@ -39,5 +42,56 @@ export class MessageHandlerService {
       phoneNumber,
       `Obrigado por compartilhar seu nome, ${name}! Como posso ajudar você hoje?`,
     );
+  }
+
+  async handleConversation(parent: Parent, body: string) {
+    if (!parent.currentMenu) return this.handleInitialMenu(parent);
+
+    const currentMenu = await this.menusService.findOne(parent.currentMenu.id);
+    let chosenOption: Option | null = parent.lastChosenOption;
+
+    if (!chosenOption) {
+      if (!currentMenu)
+        return this.whatsappClient.sendWhatsAppMessage(
+          parent.phoneNumber,
+          'Desculpe, no momento não há menus disponíveis.',
+        );
+
+      chosenOption = currentMenu.options[parseInt(body) - 1];
+
+      if (!chosenOption)
+        return this.whatsappClient.sendWhatsAppMessage(
+          parent.phoneNumber,
+          `Desculpe, a opção escolhida não é válida.\n\nSelecione uma opção válida.\n${currentMenu.options.map((opt, index) => `\n${index + 1}. ${opt.label}`).join('')}
+        `,
+        );
+    }
+
+    this.whatsappClient.sendWhatsAppMessage(
+      parent.phoneNumber,
+      await this.menusService[parent.currentMenu.label](
+        parent.currentMenu,
+        chosenOption,
+        parent,
+        body,
+      ),
+    );
+  }
+
+  async handleInitialMenu(parent: Parent) {
+    const initialMenu = await this.menusService.findInitialMenu();
+    if (!initialMenu)
+      return this.whatsappClient.sendWhatsAppMessage(
+        parent.phoneNumber,
+        'Desculpe, no momento não há menus disponíveis.',
+      );
+
+    await this.whatsappClient.sendWhatsAppMessage(
+      parent.phoneNumber,
+      `Olá, ${parent.name}!\n\nComo posso te ajudar hoje?\n${initialMenu.options.map((opt, index) => `\n${index + 1}. ${opt.label}`).join('')}
+      `,
+    );
+
+    this.parentsService.updateCurrentMenu(parent.phoneNumber, initialMenu);
   }
 }
