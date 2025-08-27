@@ -7,6 +7,8 @@ import { Option } from './entities/option.entity';
 import { Repository } from 'typeorm';
 import { Parent } from '../parents/entities/parent.entity';
 import { ParentsService } from '../parents/parents.service';
+import { ChildrenService } from '../children/children.service';
+import { OllamaAiService } from '../ollama-ai/ollama-ai.service';
 
 @Injectable()
 export class MenusService {
@@ -15,6 +17,8 @@ export class MenusService {
     @InjectRepository(Option)
     private readonly optionsRepository: Repository<Option>,
     private readonly parentsService: ParentsService,
+    private readonly childrenService: ChildrenService,
+    private readonly ollamaAiService: OllamaAiService,
   ) {
     this.handleInitialMenuCreation();
   }
@@ -64,9 +68,10 @@ export class MenusService {
     if (!foundMenu) {
       const options = this.optionsRepository.create([
         { label: 'Alterar meu nome' },
-        { label: 'Adicionar criança' },
-        { label: 'Remover criança' },
+        { label: 'Adicionar nova criança' },
         { label: 'Selecionar criança' },
+        { label: 'Deletar criança selecionada' },
+        { label: 'Perguntar sobre a criança selecionada' },
       ]);
 
       const savedOptions = await this.optionsRepository.save(options);
@@ -98,15 +103,116 @@ export class MenusService {
         this.parentsService.updateName(parent.phoneNumber, body);
         return 'Seu nome foi alterado com sucesso.';
       }
-      case 'Adicionar criança':
-        // Handle adding child
-        break;
-      case 'Remover criança':
-        // Handle removing child
-        break;
-      case 'Selecionar criança':
-        // Handle selecting child
-        break;
+      case 'Adicionar nova criança':
+        if (!parent.lastChosenOption) {
+          this.parentsService.updateLastChosenOption(
+            parent.phoneNumber,
+            selectedOption,
+          );
+          return 'Por favor, envie o nome da criança.';
+        }
+        if (!parent.conversationState) {
+          const child = await this.childrenService.createChild(parent, body);
+          this.parentsService.updateConversationState(
+            parent.phoneNumber,
+            'waiting_for_dob',
+          );
+          this.parentsService.updateCurrentChild(parent.phoneNumber, child);
+          return 'Certo! Agora envie a data de nascimento da criança. (DD/MM/AAAA)';
+        }
+        if (parent.conversationState === 'waiting_for_dob') {
+          if (!parent.currentChild) {
+            return 'Nenhuma criança selecionada.';
+          }
+          const result = await this.childrenService.updateChildDob(
+            parent.currentChild,
+            body,
+          );
+          if (result) return result;
+          this.parentsService.updateConversationState(parent.phoneNumber);
+          this.parentsService.updateCurrentMenu(parent.phoneNumber);
+          this.parentsService.updateLastChosenOption(parent.phoneNumber);
+          return 'Data de nascimento da criança atualizada com sucesso.';
+        }
+      case 'Deletar criança selecionada': {
+        if (!parent.currentChild) {
+          return 'Nenhuma criança selecionada.';
+        }
+        await this.childrenService.removeChild(parent.currentChild);
+        this.parentsService.updateCurrentChild(parent.phoneNumber);
+        this.parentsService.updateConversationState(parent.phoneNumber);
+        this.parentsService.updateCurrentMenu(parent.phoneNumber);
+        this.parentsService.updateLastChosenOption(parent.phoneNumber);
+        return 'Criança removida com sucesso.';
+      }
+      case 'Selecionar criança': {
+        if (!parent.children || parent.children.length === 0) {
+          return 'Nenhuma criança disponível para seleção.';
+        }
+        if (!parent.lastChosenOption) {
+          this.parentsService.updateLastChosenOption(
+            parent.phoneNumber,
+            selectedOption,
+          );
+          this.parentsService.updateConversationState(
+            parent.phoneNumber,
+            'selecting_child',
+          );
+          return `Por favor, selecione a criança.\n\n${parent.children
+            .map((child, index) => `${index + 1}. ${child.name}`)
+            .join('\n')}`;
+        }
+
+        if (parent.conversationState === 'selecting_child') {
+          const childIndex = parseInt(body) - 1;
+          if (
+            isNaN(childIndex) ||
+            childIndex < 0 ||
+            childIndex >= parent.children.length
+          ) {
+            return `Opção inválida. Por favor, selecione uma criança válida.\n\n${parent.children
+              .map((child, index) => `${index + 1}. ${child.name}`)
+              .join('\n')}`;
+          }
+
+          const selectedChild = parent.children[childIndex];
+          this.parentsService.updateCurrentChild(
+            parent.phoneNumber,
+            selectedChild,
+          );
+          this.parentsService.updateConversationState(parent.phoneNumber);
+          this.parentsService.updateCurrentMenu(parent.phoneNumber);
+          this.parentsService.updateLastChosenOption(parent.phoneNumber);
+          return `Criança selecionada: ${selectedChild.name}`;
+        }
+      }
+      case 'Perguntar sobre a criança selecionada': {
+        if (!parent.currentChild) {
+          return 'Nenhuma criança selecionada.';
+        }
+        if (!parent.lastChosenOption) {
+          this.parentsService.updateLastChosenOption(
+            parent.phoneNumber,
+            selectedOption,
+          );
+          this.parentsService.updateConversationState(
+            parent.phoneNumber,
+            'asking_about_selected_child',
+          );
+          return `Certo! Como posso ajudar com a criança selecionada: ${parent.currentChild.name}?`;
+        }
+        if (parent.conversationState === 'asking_about_selected_child') {
+          const response = await this.ollamaAiService.generateResponse(
+            body,
+            parent,
+            parent.currentChild,
+          );
+          this.parentsService.updateConversationState(parent.phoneNumber);
+          this.parentsService.updateCurrentMenu(parent.phoneNumber);
+          this.parentsService.updateLastChosenOption(parent.phoneNumber);
+          return response;
+        }
+      }
       default:
         break;
     }

@@ -4,6 +4,7 @@ import { Parent } from './entities/parent.entity';
 import { Repository } from 'typeorm';
 import { Menu } from '../menus/entities/menu.entity';
 import { Option } from '../menus/entities/option.entity';
+import { Child } from 'src/children/entities/child.entity';
 
 @Injectable()
 export class ParentsService {
@@ -28,6 +29,8 @@ export class ParentsService {
           options: true,
         },
         lastChosenOption: true,
+        children: true,
+        currentChild: true,
       },
     });
   }
@@ -47,6 +50,20 @@ export class ParentsService {
     this.parentsRepository.update(
       { phoneNumber },
       { lastChosenOption: option || null },
+    );
+  }
+
+  async updateConversationState(phoneNumber: string, state: string = '') {
+    return this.parentsRepository.update(
+      { phoneNumber },
+      { conversationState: state },
+    );
+  }
+
+  async updateCurrentChild(phoneNumber: string, child?: Child) {
+    return this.parentsRepository.update(
+      { phoneNumber },
+      { currentChild: child || null },
     );
   }
 }
