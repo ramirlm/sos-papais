@@ -26,8 +26,8 @@ export class MessageHandlerService {
   }
 
   async handleNotFoundParent(phoneNumber: string) {
-    this.parentsService.register(phoneNumber);
-    this.whatsappClient.sendWhatsAppMessage(
+    await this.parentsService.register(phoneNumber);
+    await this.whatsappClient.sendWhatsAppMessage(
       phoneNumber,
       'Olá! Seja bem-vindo ao SOS Papais, parece que você é novo por aqui, qual o seu nome?',
     );
@@ -35,7 +35,7 @@ export class MessageHandlerService {
 
   async handleParentName(phoneNumber: string, name: string) {
     await this.parentsService.updateName(phoneNumber, name);
-    this.whatsappClient.sendWhatsAppMessage(
+    await this.whatsappClient.sendWhatsAppMessage(
       phoneNumber,
       `Obrigado por compartilhar seu nome, ${name}! Como posso ajudar você hoje?`,
     );

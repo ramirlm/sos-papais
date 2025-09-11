@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { KnowledgesService } from '../knowledges/knowledges.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { KnowledgeEmbeddingService } from '../embedding/knowledge-embedding/knowledge-embedding.service';
@@ -14,10 +13,10 @@ export class OllamaAiService {
     private readonly knowledgeEmbeddingService: KnowledgeEmbeddingService,
   ) {
     this.ai = new Ollama({ host: 'http://127.0.0.1:11434' });
-    this.knowledgeEmbeddingService.embedKnowledgeBase();
+    void this.knowledgeEmbeddingService.embedKnowledgeBase();
   }
 
-  async generateResponse(query: string, child?: any): Promise<string> {
+  async generateResponse(query: string, child?: unknown): Promise<string> {
     const questionText = child
       ? `${query} esse é o filho: ${JSON.stringify(child)}`
       : query;
@@ -28,23 +27,31 @@ export class OllamaAiService {
     const documents = await this.knowledgeService.matchDocuments({
       queryEmbedding,
       matchThreshold: 0.4,
-      matchCount: 27,
+      matchCount: 12,
     });
 
-    const contextText = documents.map((doc) => doc.content).join('\n\n---\n\n');
+    const rawContextText = documents
+      .map((doc: { content: string }) => doc.content)
+      .join('\n\n---\n\n');
+
+    const contextText = this.truncateContext(rawContextText, 12000);
 
     const prompt = `
-      Você é um chatbot especialista em sono infantil e desenvolvimento de bebês. Sua missão é ajudar pais e mães com informações claras, empáticas e baseadas em fatos, em português do Brasil.
-      Use **apenas** o contexto fornecido abaixo para responder à pergunta do usuário. Não invente informações.
-      Se o contexto não for suficiente para responder, diga que você não tem a informação sobre esse tópico específico.
+Você é um assistente especialista em sono infantil e desenvolvimento de bebês. Responda em português do Brasil.
 
-      Contexto:
-      ${contextText}
+Regras:
+- Baseie-se apenas no CONTEXTO. Não invente fatos.
+- Seja direto, empático e claro para leigos.
+- Se o contexto não cobrir o tema, diga que não há informação suficiente e sugira como reformular a pergunta.
+- Quando fizer sentido, organize em tópicos curtos e práticos.
 
-      Pergunta do Usuário:
-      ${query}
+CONTEXTO:
+${contextText}
 
-      Resposta:
+PERGUNTA DO USUÁRIO:
+${query}
+
+RESPOSTA:
     `.trim();
 
     const completion = await this.ai.generate({
@@ -56,5 +63,11 @@ export class OllamaAiService {
       completion?.response?.trim() ||
       'Desculpe, não consegui gerar uma resposta.'
     );
+  }
+
+  private truncateContext(text: string, maxChars: number): string {
+    if (!text) return '';
+    if (text.length <= maxChars) return text;
+    return text.slice(0, maxChars) + '\n\n...';
   }
 }

@@ -7,4 +7,7 @@ export class Knowledge {
 
   @Column()
   content: string;
+
+  @Column({ type: 'text', nullable: true })
+  embedding: string;
 }

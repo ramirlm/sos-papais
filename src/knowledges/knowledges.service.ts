@@ -13,7 +13,7 @@ export class KnowledgesService {
     queryEmbedding?: number[];
     matchThreshold: number;
     matchCount: number;
-  }) {
+  }): Promise<{ id: string; content: string; similarity: number }[]> {
     return await this.dataSource.query(
       `
       SELECT * FROM match_documents($1::vector, $2::float, $3::int)
@@ -37,7 +37,6 @@ export class KnowledgesService {
         `,
         [content, this.formatVector(embedding)],
       );
-      console.log('Insert successful');
     } catch (error) {
       console.error('Insert failed:', error);
     }

@@ -12,16 +12,14 @@ export class WhatsappWebService implements OnModuleInit {
     private readonly messageHandlerService: MessageHandlerService,
     private readonly configService: ConfigService,
   ) {
-    this.configService
-      .getOrThrow('NUMBER_SAFELIST')
-      .split(',')
-      .forEach((num) => {
-        if (num) this.numberSafelist.push(num.trim());
-      });
+    const safelist = this.configService.getOrThrow<string>('NUMBER_SAFELIST');
+    safelist.split(',').forEach((num: string) => {
+      if (num) this.numberSafelist.push(num.trim());
+    });
   }
 
   private readonly logger = new Logger(WhatsappWebService.name);
-  private client: Client;
+  private client: Client | null = null;
 
   async onModuleInit() {
     this.logger.log('Iniciando o WhatsApp Web Client...');
@@ -35,34 +33,35 @@ export class WhatsappWebService implements OnModuleInit {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       },
     });
+    const client = this.client as Client;
 
-    this.client.on('qr', (qr) => {
+    client.on('qr', (qr) => {
       this.logger.log('Escaneie o QR Code abaixo com seu WhatsApp:');
       qrcode.generate(qr, { small: true });
     });
 
-    this.client.on('ready', () => {
+    client.on('ready', () => {
       this.logger.log('WhatsApp Web Client está pronto!');
     });
 
-    this.client.on('auth_failure', (msg) => {
+    client.on('auth_failure', (msg) => {
       this.logger.error('Falha na autenticação:', msg);
     });
 
-    this.client.on('disconnected', (reason) => {
+    client.on('disconnected', (reason) => {
       this.logger.warn(`Cliente desconectado: ${reason}`);
     });
 
-    this.client.on('message', (message) => {
+    client.on('message', (message) => {
       if (
         this.numberSafelist.length &&
         this.numberSafelist.indexOf(message.from) === -1
       )
         return this.logger.warn(`Número não autorizado: ${message.from}`);
-      this.messageHandlerService.handleIncomingMessage(message);
+      void this.messageHandlerService.handleIncomingMessage(message);
     });
 
-    await this.client.initialize();
+    await client.initialize();
   }
 
   async sendWhatsAppMessage(to: string, message: string): Promise<void> {
@@ -73,7 +72,7 @@ export class WhatsappWebService implements OnModuleInit {
 
     try {
       const phoneFormatted = this.formatPhoneNumber(to);
-      await this.client.sendMessage(phoneFormatted, message);
+      await (this.client as Client).sendMessage(phoneFormatted, message);
       this.logger.log(`Mensagem enviada para ${to}`);
     } catch (error) {
       this.logger.error(`Erro ao enviar mensagem para ${to}`, error);
