@@ -14,12 +14,12 @@ import { ParentsModule } from './parents/parents.module';
 import { MenusModule } from './menus/menus.module';
 import { ChildrenModule } from './children/children.module';
 import { environments } from './common/constants/environments';
-import typeormConfig from 'typeorm.config';
+import {typeormConfigs} from './configs/typeorm';
 import 'dotenv/config';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(typeormConfig[process.env.NODE_ENV || environments.DEVELOPMENT]),
+    TypeOrmModule.forRoot(typeormConfigs[process.env.NODE_ENV || environments.DEVELOPMENT]),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
