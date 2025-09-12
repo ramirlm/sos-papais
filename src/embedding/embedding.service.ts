@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { pipeline } from '@xenova/transformers';
+
 
 @Injectable()
 export class EmbeddingService {
@@ -17,7 +17,9 @@ export class EmbeddingService {
     if (!this.embedder) {
       this.logger.log(`🔄 Carregando modelo de embeddings: ${this.modelName}`);
       try {
-        this.embedder = await pipeline('feature-extraction', this.modelName);
+  // Dynamically import the ES module
+  const { pipeline } = await import('@xenova/transformers');
+  this.embedder = await pipeline('feature-extraction', this.modelName);
         this.logger.log('✅ Modelo de embeddings carregado com sucesso!');
       } catch (error) {
         this.logger.error('❌ Erro ao carregar o modelo de embeddings', error);
