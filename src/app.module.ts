@@ -13,16 +13,13 @@ import { ConfigModule } from '@nestjs/config';
 import { ParentsModule } from './parents/parents.module';
 import { MenusModule } from './menus/menus.module';
 import { ChildrenModule } from './children/children.module';
+import { environments } from './common/constants/environments';
+import typeormConfig from 'typeorm.config';
 import 'dotenv/config';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      autoLoadEntities: true,
-      logging: true,
-    }),
+    TypeOrmModule.forRoot(typeormConfig[process.env.NODE_ENV || environments.DEVELOPMENT]),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
