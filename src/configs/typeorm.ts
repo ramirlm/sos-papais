@@ -7,12 +7,12 @@ export const typeormConfigs: Record<string, TypeOrmModuleOptions> = {
     type: 'postgres',
     url: process.env.DATABASE_URL || '',
     autoLoadEntities: true,
-    entities: [`${process.cwd()}/**/*.entity.{ts,js}`],
+    entities: [`${process.cwd()}/**/*.entity.js`],
   },
   [environments.PRODUCTION]: {
     type: 'postgres',
     url: process.env.DATABASE_URL || '',
     autoLoadEntities: true,
-    entities: [`${process.cwd()}/**/*.entity.{ts,js}`],
+    entities: [`${process.cwd()}/**/*.entity.js`],
   },
 };
