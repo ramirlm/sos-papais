@@ -5,7 +5,7 @@ import 'dotenv/config';
 export const typeormConfigs: Record<string, TypeOrmModuleOptions> = {
   [environments.DEVELOPMENT]: {
     type: 'postgres',
-    database: process.env.DATABASE_URL || '',
+    url: process.env.DATABASE_URL || '',
     autoLoadEntities: true,
     entities: [`${process.cwd()}/**/*.entity.{ts,js}`],
   },
