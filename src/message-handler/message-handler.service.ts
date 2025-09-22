@@ -1,5 +1,4 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
-import { OllamaAiService } from '../ollama-ai/ollama-ai.service';
 import { WhatsappWebService } from '../whatsapp-web/whatsapp-web.service';
 import { ParentsService } from '../parents/parents.service';
 import { Parent } from '../parents/entities/parent.entity';

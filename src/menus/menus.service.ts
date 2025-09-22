@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { Parent } from '../parents/entities/parent.entity';
 import { ParentsService } from '../parents/parents.service';
 import { ChildrenService } from '../children/children.service';
-import { OllamaAiService } from '../ollama-ai/ollama-ai.service';
+import { GeminiAiService } from '../gemini-ai/gemini-ai.service';
 
 @Injectable()
 export class MenusService {
@@ -18,7 +18,7 @@ export class MenusService {
     private readonly optionsRepository: Repository<Option>,
     private readonly parentsService: ParentsService,
     private readonly childrenService: ChildrenService,
-    private readonly ollamaAiService: OllamaAiService,
+    private readonly aiService: GeminiAiService,
   ) {
     this.handleInitialMenuCreation();
   }
@@ -202,7 +202,7 @@ export class MenusService {
           return `Certo! Como posso ajudar com a criança selecionada: ${parent.currentChild.name}?`;
         }
         if (parent.conversationState === 'asking_about_selected_child') {
-          const response = await this.ollamaAiService.generateResponse(
+          const response = await this.aiService.generateResponse(
             body,
             parent,
             parent.currentChild,

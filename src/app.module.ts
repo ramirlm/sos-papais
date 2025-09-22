@@ -15,6 +15,7 @@ import { MenusModule } from './menus/menus.module';
 import { ChildrenModule } from './children/children.module';
 import { environments } from './common/constants/environments';
 import { typeormConfigs } from './configs/typeorm';
+import { GeminiAiService } from './gemini-ai/gemini-ai.service';
 import 'dotenv/config';
 
 @Module({
@@ -37,6 +38,7 @@ import 'dotenv/config';
     KnowledgeEmbeddingService,
     WhatsappWebService,
     MessageHandlerService,
+    GeminiAiService,
   ],
 })
 export class AppModule {}
