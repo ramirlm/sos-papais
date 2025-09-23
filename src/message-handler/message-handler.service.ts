@@ -85,8 +85,8 @@ export class MessageHandlerService {
         parent.phoneNumber,
         result.response
       );
-
-      await this.handleInitialMenu(parent);
+      const revalidatedParent = await this.parentsService.findByPhone(parent.phoneNumber)
+      if(revalidatedParent) await this.handleInitialMenu(revalidatedParent);
     }
 
   }
