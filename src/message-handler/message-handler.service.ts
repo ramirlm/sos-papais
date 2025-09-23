@@ -36,10 +36,13 @@ export class MessageHandlerService {
 
   async handleParentName(phoneNumber: string, name: string) {
     await this.parentsService.updateName(phoneNumber, name);
-    this.whatsappClient.sendWhatsAppMessage(
+    const parent = await this.parentsService.findByPhone(phoneNumber)
+    await this.whatsappClient.sendWhatsAppMessage(
       phoneNumber,
-      `Obrigado por compartilhar seu nome, ${name}! Seja bem-vindo ao SOS Papais! Se precisar de ajuda, é só chamar!`,
+      `Obrigado por compartilhar seu nome, ${name}! Seja bem-vindo ao SOS Papais!`,
     );
+    if(parent)
+      await this.handleInitialMenu(parent);
   }
 
   async handleConversation(parent: Parent, body: string) {
@@ -65,15 +68,27 @@ export class MessageHandlerService {
         );
     }
 
-    this.whatsappClient.sendWhatsAppMessage(
-      parent.phoneNumber,
-      await this.menusService[parent.currentMenu.label](
+
+    const result = await this.menusService[parent.currentMenu.label](
         parent.currentMenu,
         chosenOption,
         parent,
         body,
-      ),
-    );
+      )
+
+    if(typeof result === 'string') {
+      this.whatsappClient.sendWhatsAppMessage(
+      parent.phoneNumber,
+      result
+    )} else if(result && result.response && result.sendMenu) {
+      await this.whatsappClient.sendWhatsAppMessage(
+        parent.phoneNumber,
+        result.response
+      );
+
+      await this.handleInitialMenu(parent);
+    }
+
   }
 
   async handleInitialMenu(parent: Parent) {

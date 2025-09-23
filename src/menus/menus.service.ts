@@ -101,7 +101,7 @@ export class MenusService {
         this.parentsService.updateCurrentMenu(parent.phoneNumber);
         this.parentsService.updateLastChosenOption(parent.phoneNumber);
         this.parentsService.updateName(parent.phoneNumber, body);
-        return 'Seu nome foi alterado com sucesso.';
+        return {response :'Seu nome foi alterado com sucesso.', sendMenu: true};
       }
       case 'Adicionar nova criança':
         if (!parent.lastChosenOption) {
@@ -132,7 +132,7 @@ export class MenusService {
           this.parentsService.updateConversationState(parent.phoneNumber);
           this.parentsService.updateCurrentMenu(parent.phoneNumber);
           this.parentsService.updateLastChosenOption(parent.phoneNumber);
-          return 'Data de nascimento da criança atualizada com sucesso.';
+          return {response: 'Data de nascimento da criança atualizada com sucesso.', sendMenu: true};
         }
       case 'Deletar criança selecionada': {
         if (!parent.currentChild) {
@@ -143,7 +143,7 @@ export class MenusService {
         this.parentsService.updateConversationState(parent.phoneNumber);
         this.parentsService.updateCurrentMenu(parent.phoneNumber);
         this.parentsService.updateLastChosenOption(parent.phoneNumber);
-        return 'Criança removida com sucesso.';
+        return {response: 'Criança removida com sucesso.', sendMenu: true};
       }
       case 'Selecionar criança': {
         if (!parent.children || parent.children.length === 0) {
@@ -183,7 +183,7 @@ export class MenusService {
           this.parentsService.updateConversationState(parent.phoneNumber);
           this.parentsService.updateCurrentMenu(parent.phoneNumber);
           this.parentsService.updateLastChosenOption(parent.phoneNumber);
-          return `Criança selecionada: ${selectedChild.name}`;
+          return {response: `Criança selecionada: ${selectedChild.name}`, sendMenu: true};
         }
       }
       case 'Perguntar sobre a criança selecionada': {
