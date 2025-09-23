@@ -206,6 +206,7 @@ export class MenusService {
             this.parentsService.updateConversationState(parent.phoneNumber);
             this.parentsService.updateCurrentMenu(parent.phoneNumber);
             this.parentsService.updateLastChosenOption(parent.phoneNumber);
+            this.parentsService.updateLastInteraction(parent.phoneNumber);
             return  { response: 'Voltando ao menu inicial...', sendMenu: true };
           } else {
             const response = await this.aiService.generateResponse(
@@ -213,6 +214,9 @@ export class MenusService {
               parent,
               parent.currentChild,
             );
+
+            this.parentsService.updateLastInteraction(parent.phoneNumber, body, response);
+
             return response + '\n\nSe precisar voltar a o menu inicial, digite *0*.';
           }
         }
