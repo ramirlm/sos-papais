@@ -1,3 +1,4 @@
+import { Knowledge } from '../../knowledges/entities/knowledge.entity';
 import { Child } from '../../children/entities/child.entity';
 import { Menu } from '../../menus/entities/menu.entity';
 import { Option } from '../../menus/entities/option.entity';
@@ -42,9 +43,16 @@ export class Parent {
   @Column({ nullable: true })
   lastResponse: string;
 
-  @OneToOne(() => Option, { nullable: true })
+  @ManyToOne(() => Option, { nullable: true })
   @JoinColumn()
   lastChosenOption: Option | null;
+
+  @ManyToOne(() => Knowledge, { nullable: true })
+  @JoinColumn()
+  lastUsedKnowledge: Knowledge;
+
+  @Column({nullable: true})
+  contextSummary: string;
 
   @ManyToOne(() => Menu, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()

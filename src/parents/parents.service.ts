@@ -4,14 +4,15 @@ import { Parent } from './entities/parent.entity';
 import { Repository } from 'typeorm';
 import { Menu } from '../menus/entities/menu.entity';
 import { Option } from '../menus/entities/option.entity';
-import { Child } from 'src/children/entities/child.entity';
+import { Child } from '../children/entities/child.entity';
+import { Knowledge } from '../knowledges/entities/knowledge.entity';
 
 @Injectable()
 export class ParentsService {
   constructor(
     @InjectRepository(Parent)
     private readonly parentsRepository: Repository<Parent>,
-  ) {}
+  ) { }
 
   async register(phoneNumber: string) {
     const createdParent = this.parentsRepository.create({
@@ -31,6 +32,7 @@ export class ParentsService {
         lastChosenOption: true,
         children: true,
         currentChild: true,
+        lastUsedKnowledge: true,
       },
     });
   }
@@ -67,10 +69,23 @@ export class ParentsService {
     );
   }
 
-  async updateLastInteraction(phoneNumber: string, question: string = '', response: string = '') {
+  async updateLastInteraction({
+    phoneNumber,
+    question = '',
+    response = '',
+    lastUsedKnowledge,
+    contextSummary = ''
+  }:
+    {
+      phoneNumber: string,
+      question?: string,
+      response?: string,
+      lastUsedKnowledge?: Knowledge,
+      contextSummary?: string
+    }) {
     return this.parentsRepository.update(
       { phoneNumber },
-      { lastQuestion: question, lastResponse: response },
+      { lastQuestion: question, lastResponse: response, lastUsedKnowledge, contextSummary },
     );
   }
 }
