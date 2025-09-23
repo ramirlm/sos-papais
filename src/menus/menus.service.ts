@@ -202,15 +202,19 @@ export class MenusService {
           return `Certo! Como posso ajudar com a criança selecionada: ${parent.currentChild.name}?`;
         }
         if (parent.conversationState === 'asking_about_selected_child') {
-          const response = await this.aiService.generateResponse(
-            body,
-            parent,
-            parent.currentChild,
-          );
-          this.parentsService.updateConversationState(parent.phoneNumber);
-          this.parentsService.updateCurrentMenu(parent.phoneNumber);
-          this.parentsService.updateLastChosenOption(parent.phoneNumber);
-          return response;
+          if(body === '0') {
+            this.parentsService.updateConversationState(parent.phoneNumber);
+            this.parentsService.updateCurrentMenu(parent.phoneNumber);
+            this.parentsService.updateLastChosenOption(parent.phoneNumber);
+            return  { response: 'Voltando ao menu inicial...', sendMenu: true };
+          } else {
+            const response = await this.aiService.generateResponse(
+              body,
+              parent,
+              parent.currentChild,
+            );
+            return response + '\n\nSe precisar voltar a o menu inicial, digite *0*.';
+          }
         }
       }
       default:
