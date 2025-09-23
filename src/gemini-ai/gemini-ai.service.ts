@@ -41,24 +41,41 @@ export class GeminiAiService {
       });
   
       const contextText = documents.map((doc) => doc.content).join('\n\n---\n\n');
+      const conversationHistoryExists = parent.lastQuestion && parent.lastResponse;
+      const contextInstructionsText = conversationHistoryExists ? '- Use as informações fornecidas nos campos CONTEXTO e HISTÓRICO DA CONVERSA abaixo para formular sua resposta.' 
+      : '- Use **exclusivamente** as informações fornecidas no campo CONTEXTO abaixo para formular sua resposta.'
   
       const childMonths =
         (new Date().getFullYear() - child.birthDate.getFullYear()) * 12 +
         (new Date().getMonth() - child.birthDate.getMonth());
   
+      const childAgeText = childMonths > 12 ? `${Math.floor(childMonths/12)} anos${childMonths%12 > 0 ? ` e ${childMonths%12} meses` : ''}` : `${childMonths} meses`
+
       const prompt = `
         Você é um assistente virtual especialista em sono infantil e desenvolvimento de bebês. Sua missão é ajudar pais e mães com informações claras, empáticas e baseadas em evidências científicas, sempre em português do Brasil.
   
         INSTRUÇÕES IMPORTANTES:
-        - Use **exclusivamente** as informações fornecidas no campo CONTEXTO abaixo para formular sua resposta.
+        ${contextInstructionsText}
         - Se o contexto não for encontrado ou não for suficiente, responda que não há dados suficientes para responder à pergunta em sua base de dados.
         - **Não invente informações**. Se o contexto não for suficiente para responder corretamente, diga que não há dados suficientes para responder sobre esse tópico.
         - **Não faça perguntas** ao usuário.
         - Formate a resposta como se fosse uma mensagem de WhatsApp: linguagem acessível, tom acolhedor e objetivo.
         - Caso a pergunta do usuário não seja clara ou não pareça uma pergunta, ofereça dicas úteis e seguras relacionadas ao tema mencionado.
-        - Trate a criança como se você já a conhecesse: o nome dela é **${child.name}**, tem **${childMonths > 12 ? `${Math.floor(childMonths/12)} anos${childMonths%12 > 0 ? ` e ${childMonths%12} meses` : ''}` : `${childMonths} meses`}**, o responsável que está conversando com você é **${parent.name}**.
+        - Trate a criança como se você já a conhecesse: o nome dela é **${child.name}**, tem **${childAgeText}**, o responsável que está conversando com você é **${parent.name}**.
+        ${conversationHistoryExists ? '- Use o campo HISTÓRICO DA CONVERSA para **dar continuidade à conversa**.' : ''}
   
-  
+        ${conversationHistoryExists ? `
+        --------------------
+        HISTÓRICO DA CONVERSA:
+
+        Última pergunta do usuário:
+        ${parent.lastQuestion}
+
+        Sua última resposta:
+        ${parent.lastResponse}
+        --------------------` : ''
+        }
+
         --------------------
         CONTEXTO:
         ${contextText ? contextText : 'Nenhum contexto foi encontrado'}

@@ -36,6 +36,12 @@ export class Parent {
   @Column({ nullable: true })
   name: string;
 
+  @Column({ nullable: true })
+  lastQuestion: string;
+
+  @Column({ nullable: true })
+  lastResponse: string;
+
   @OneToOne(() => Option, { nullable: true })
   @JoinColumn()
   lastChosenOption: Option | null;
