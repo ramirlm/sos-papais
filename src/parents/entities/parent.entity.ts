@@ -42,7 +42,7 @@ export class Parent {
   @Column({ nullable: true })
   lastResponse: string;
 
-  @OneToOne(() => Option, { nullable: true })
+  @ManyToOne(() => Option, { nullable: true })
   @JoinColumn()
   lastChosenOption: Option | null;
 
