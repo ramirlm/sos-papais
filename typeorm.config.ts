@@ -4,6 +4,6 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 export default new DataSource({
   ...(typeormConfigs[environments.PRODUCTION] as DataSourceOptions),
-  entities: [`${process.cwd()}/**/*.entity.{ts,js}`],
-  migrations: [`${process.cwd()}/migrations/*.{ts,js}`],
+  entities: [`${process.cwd()}/**/*.entity.ts`],
+  migrations: [`${process.cwd()}/migrations/*.ts`],
 });
