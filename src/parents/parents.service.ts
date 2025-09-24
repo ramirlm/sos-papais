@@ -67,10 +67,10 @@ export class ParentsService {
     );
   }
 
-  async updateLastInteraction(phoneNumber: string, question: string = '', response: string = '') {
+  async updateLastInteraction(phoneNumber: string, contextSummary: string = '') {
     return this.parentsRepository.update(
       { phoneNumber },
-      { lastQuestion: question, lastResponse: response },
+      { contextSummary },
     );
   }
 }
