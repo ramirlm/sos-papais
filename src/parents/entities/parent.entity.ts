@@ -37,10 +37,7 @@ export class Parent {
   name: string;
 
   @Column({ nullable: true })
-  lastQuestion: string;
-
-  @Column({ nullable: true })
-  lastResponse: string;
+  contextSummary: string;
 
   @ManyToOne(() => Option, { nullable: true })
   @JoinColumn()
