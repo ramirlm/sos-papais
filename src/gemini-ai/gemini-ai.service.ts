@@ -10,6 +10,8 @@ import { Child } from '../children/entities/child.entity';
 @Injectable()
 export class GeminiAiService {
   private ai: GoogleGenAI;
+  private matchThreshold: number;
+  private documentsCount: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -21,7 +23,12 @@ export class GeminiAiService {
       apiKey: this.configService.get<string>('GOOGLE_GENAI_API_KEY'),
     });
 
-    this.knowledgeEmbeddingService.embedKnowledgeBase();
+    this.matchThreshold =
+      Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
+
+    this.knowledgeEmbeddingService
+      .embedKnowledgeBase()
+      .then(({ documentsCount }) => (this.documentsCount = documentsCount));
   }
 
   async generateResponse(
@@ -36,8 +43,8 @@ export class GeminiAiService {
 
     const documents = await this.knowledgeService.matchDocuments({
       queryEmbedding,
-      matchThreshold: 0.75,
-      matchCount: 27,
+      matchThreshold: this.matchThreshold,
+      matchCount: this.documentsCount,
     });
 
     const contextText = documents.map((doc) => doc.content).join('\n\n---\n\n');
@@ -97,72 +104,80 @@ export class GeminiAiService {
       contextSummary: parent.contextSummary,
       userMessage: questionText,
       aiResponse,
+      usedKnowledge: contextText,
     });
 
     return { aiResponse , updatedContextSummary};
   }
 
   async generateContextSummary({
-    contextSummary,
-    userMessage,
-    aiResponse,
-  }: {
-    contextSummary: string;
-    userMessage: string;
-    aiResponse: string;
-  }): Promise<string> {
-    const prompt = `
-      Você é um componente intermediário em uma conversa entre uma IA e um usuário. Sua função é gerar um resumo de contexto acumulativo com base nas mensagens trocadas.
+  contextSummary,
+  userMessage,
+  aiResponse,
+  usedKnowledge,
+}: {
+  contextSummary: string;
+  userMessage: string;
+  aiResponse: string;
+  usedKnowledge?: string;
+}): Promise<string> {
+  const prompt = `
+    Você é um componente intermediário em uma conversa entre uma IA e um usuário. Sua função é gerar um resumo de contexto acumulativo com base nas mensagens trocadas.
 
-      INSTRUÇÕES IMPORTANTES:
-      - Utilize os campos "MENSAGEM DO USUÁRIO" e "MENSAGEM DA IA" para atualizar o histórico da conversa.
-      - Identifique claramente de quem é cada mensagem.
-      - O resumo deve manter todas as informações anteriores relevantes — ou seja, o contexto deve ser acumulativo.
-      - Utilize o campo "CONTEXTO ATUAL" como base para adicionar as novas informações.
-      - Sempre escreva o resumo como se fosse a **própria IA refletindo** sobre o que está sendo conversado com o usuário.
-      - O resumo deve ser claro, organizado cronologicamente e em português do Brasil.
-      - Utilize o campo de **timestamp** para registrar o momento da interação.
-      - Sempre inclua no resumo:
-        - Todas as **perguntas do usuário**.
-        - Todas as **respostas da IA** com suas respectivas dicas.
-        - **Perguntas feitas pela IA ao usuário** (caso existam).
-        - As **respostas do usuário** a essas perguntas (e use essas informações para complementar ou melhorar respostas anteriores).
-      - **Não invente informações** que não tenham sido mencionadas.
+    INSTRUÇÕES IMPORTANTES:
+    - Utilize os campos "MENSAGEM DO USUÁRIO" e "MENSAGEM DA IA" para atualizar o histórico da conversa.
+    - Identifique claramente de quem é cada mensagem.
+    - O resumo deve manter todas as informações anteriores relevantes — ou seja, o contexto deve ser acumulativo.
+    - Utilize o campo "CONTEXTO ATUAL" como base para adicionar as novas informações.
+    - Sempre escreva o resumo como se fosse a **própria IA refletindo** sobre o que está sendo conversado com o usuário.
+    - O resumo deve ser claro, organizado cronologicamente e em português do Brasil.
+    - Utilize o campo de **timestamp** para registrar o momento da interação.
+    - Sempre inclua no resumo:
+      - Todas as **perguntas do usuário**.
+      - Todas as **respostas da IA** com suas respectivas dicas.
+      - **Perguntas feitas pela IA ao usuário** (caso existam).
+      - As **respostas do usuário** a essas perguntas (e use essas informações para complementar ou melhorar respostas anteriores).
+      - A **base de dados utilizada** pela IA para gerar a resposta (se houver).
+    - **Não invente informações** que não tenham sido mencionadas.
 
-      --------------------
-      TIMESTAMP DA INTERAÇÃO ATUAL:
-      ${new Date().toISOString()}
-      --------------------
+    --------------------
+    TIMESTAMP DA INTERAÇÃO ATUAL:
+    ${new Date().toISOString()}
+    --------------------
 
-      --------------------
-      CONTEXTO ATUAL:
-      ${contextSummary || 'Nenhum histórico de conversa foi encontrado.'}
-      --------------------
+    --------------------
+    CONTEXTO ATUAL:
+    ${contextSummary || 'Nenhum histórico de conversa foi encontrado.'}
+    --------------------
 
-      --------------------
-      MENSAGEM DO USUÁRIO:
-      ${userMessage || 'Nenhuma mensagem do usuário foi encontrada.'}
-      --------------------
+    --------------------
+    MENSAGEM DO USUÁRIO:
+    ${userMessage || 'Nenhuma mensagem do usuário foi encontrada.'}
+    --------------------
 
-      --------------------
-      MENSAGEM DA IA:
-      ${aiResponse || 'Nenhuma mensagem da IA foi encontrada.'}
-      --------------------
+    --------------------
+    MENSAGEM DA IA:
+    ${aiResponse || 'Nenhuma mensagem da IA foi encontrada.'}
+    --------------------
 
-      Resumo atualizado:
-    `.trim();
+    --------------------
+    BASE DE DADOS UTILIZADA:
+    ${usedKnowledge || 'Nenhuma base de dados foi mencionada.'}
+    --------------------
 
+    Resumo atualizado:
+  `.trim();
 
-    const completion = await this.ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-    });
+  const completion = await this.ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+  });
 
-    return completion?.text?.trim() || '';
-  }
+  return completion?.text?.trim() || '';
+}
 }
