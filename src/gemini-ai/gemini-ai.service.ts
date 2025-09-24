@@ -10,6 +10,8 @@ import { Child } from '../children/entities/child.entity';
 @Injectable()
 export class GeminiAiService {
   private ai: GoogleGenAI;
+  private matchThreshold: number;
+  private documentsCount: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -21,7 +23,12 @@ export class GeminiAiService {
       apiKey: this.configService.get<string>('GOOGLE_GENAI_API_KEY'),
     });
 
-    this.knowledgeEmbeddingService.embedKnowledgeBase();
+    this.matchThreshold =
+      Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
+
+    this.knowledgeEmbeddingService
+      .embedKnowledgeBase()
+      .then(({ documentsCount }) => (this.documentsCount = documentsCount));
   }
 
   async generateResponse(
@@ -36,8 +43,8 @@ export class GeminiAiService {
 
     const documents = await this.knowledgeService.matchDocuments({
       queryEmbedding,
-      matchThreshold: 0.75,
-      matchCount: 27,
+      matchThreshold: this.matchThreshold,
+      matchCount: this.documentsCount,
     });
 
     const contextText = documents.map((doc) => doc.content).join('\n\n---\n\n');
