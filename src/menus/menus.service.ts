@@ -209,15 +209,15 @@ export class MenusService {
             this.parentsService.updateLastInteraction(parent.phoneNumber);
             return  { response: 'Voltando ao menu inicial...', sendMenu: true };
           } else {
-            const response = await this.aiService.generateResponse(
+            const { aiResponse, updatedContextSummary } = await this.aiService.generateResponse(
               body,
               parent,
               parent.currentChild,
             );
 
-            this.parentsService.updateLastInteraction(parent.phoneNumber, body, response);
+            this.parentsService.updateLastInteraction(parent.phoneNumber, updatedContextSummary);
 
-            return response + '\n\nSe precisar voltar a o menu inicial, digite *0*.';
+            return aiResponse + '\n\nSe precisar voltar a o menu inicial, digite *0*.';
           }
         }
       }
