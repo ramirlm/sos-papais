@@ -7,7 +7,7 @@ export class EmbeddingService {
   private embedder: any;
 
   // Modelo pode ser facilmente trocado aqui
-  private readonly modelName = 'Xenova/bge-small-en-v1.5';
+  private readonly modelName = 'Xenova/bge-large-en-v1.5';
 
   constructor() {
     this.init();
