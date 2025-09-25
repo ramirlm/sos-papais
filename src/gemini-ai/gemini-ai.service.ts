@@ -1,17 +1,22 @@
 import { GoogleGenAI } from '@google/genai';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { KnowledgesService } from '../knowledges/knowledges.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { KnowledgeEmbeddingService } from '../embedding/knowledge-embedding/knowledge-embedding.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Child } from '../children/entities/child.entity';
+import { Knowledge } from '../knowledges/entities/knowledge.entity';
 
 @Injectable()
 export class GeminiAiService {
   private ai: GoogleGenAI;
+  private responseModelName: string;
+  private contextSummaryModelName: string;
+  private semanticQueryModelName: string;
   private matchThreshold: number;
   private documentsCount: number;
+  private readonly loggerService: Logger = new Logger(GeminiAiService.name);
 
   constructor(
     private readonly configService: ConfigService,
@@ -22,6 +27,16 @@ export class GeminiAiService {
     this.ai = new GoogleGenAI({
       apiKey: this.configService.get<string>('GOOGLE_GENAI_API_KEY'),
     });
+
+    this.responseModelName =
+      this.configService.get<string>('RESPONSE_GEMINI_AI_MODEL') ||
+      'gemini-2.0-flash';
+    this.contextSummaryModelName =
+      this.configService.get<string>('CONTEXT_SUMMARY_GEMINI_AI_MODEL') ||
+      'gemini-2.0-flash';
+    this.semanticQueryModelName =
+      this.configService.get<string>('SEMANTIC_QUERY_GEMINI_AI_MODEL') ||
+      'gemini-2.0-flash';
 
     this.matchThreshold =
       Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
@@ -35,8 +50,14 @@ export class GeminiAiService {
     query: string,
     parent: Parent,
     child: Child,
-  ): Promise<{ aiResponse: string , updatedContextSummary: string }> {
-    const questionText = query;
+  ): Promise<{ aiResponse: string; updatedContextSummary: string }> {
+    const questionText = await this.buildSemanticQuery(
+      query,
+      parent.contextSummary,
+    );
+
+    this.loggerService.log(`Usuário perguntou: ${query}`);
+    this.loggerService.log(`Consulta semântica gerada: ${questionText}`);
 
     const queryEmbedding =
       await this.embeddingService.generateEmbedding(questionText);
@@ -47,7 +68,11 @@ export class GeminiAiService {
       matchCount: this.documentsCount,
     });
 
-    const contextText = documents.map((doc) => doc.content).join('\n\n---\n\n');
+    this.loggerService.log(`Documentos encontrados: ${documents.length}`);
+
+    const contextText = documents
+      .map((doc: Knowledge) => doc.content)
+      .join('\n\n---\n\n');
 
     const childMonths =
       (new Date().getFullYear() - child.birthDate.getFullYear()) * 12 +
@@ -89,7 +114,7 @@ export class GeminiAiService {
       `.trim();
 
     const completion = await this.ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: this.responseModelName,
       contents: [
         {
           role: 'user',
@@ -98,7 +123,10 @@ export class GeminiAiService {
       ],
     });
 
-    const aiResponse = completion?.text?.trim() || 'Desculpe, não consegui gerar uma resposta.'
+    const aiResponse =
+      completion?.text?.trim() || 'Desculpe, não consegui gerar uma resposta.';
+
+    this.loggerService.log(`Resposta da IA: ${aiResponse}`);
 
     const updatedContextSummary = await this.generateContextSummary({
       contextSummary: parent.contextSummary,
@@ -107,21 +135,25 @@ export class GeminiAiService {
       usedKnowledge: contextText,
     });
 
-    return { aiResponse , updatedContextSummary};
+    this.loggerService.log(
+      `Resumo de contexto atualizado. ${updatedContextSummary}`,
+    );
+
+    return { aiResponse, updatedContextSummary };
   }
 
   async generateContextSummary({
-  contextSummary,
-  userMessage,
-  aiResponse,
-  usedKnowledge,
-}: {
-  contextSummary: string;
-  userMessage: string;
-  aiResponse: string;
-  usedKnowledge?: string;
-}): Promise<string> {
-  const prompt = `
+    contextSummary,
+    userMessage,
+    aiResponse,
+    usedKnowledge,
+  }: {
+    contextSummary: string;
+    userMessage: string;
+    aiResponse: string;
+    usedKnowledge?: string;
+  }): Promise<string> {
+    const prompt = `
     Você é um componente intermediário em uma conversa entre uma IA e um usuário. Sua função é gerar um resumo de contexto acumulativo com base nas mensagens trocadas.
 
     INSTRUÇÕES IMPORTANTES:
@@ -139,6 +171,7 @@ export class GeminiAiService {
       - As **respostas do usuário** a essas perguntas (e use essas informações para complementar ou melhorar respostas anteriores).
       - A **base de dados utilizada** pela IA para gerar a resposta (se houver).
     - **Não invente informações** que não tenham sido mencionadas.
+    - Deixe claro no resumo informações sobre a criança, como nome e idade, para que a IA possa se referir a elas em interações futuras.
 
     --------------------
     TIMESTAMP DA INTERAÇÃO ATUAL:
@@ -168,16 +201,57 @@ export class GeminiAiService {
     Resumo atualizado:
   `.trim();
 
-  const completion = await this.ai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: prompt }],
-      },
-    ],
-  });
+    const completion = await this.ai.models.generateContent({
+      model: this.contextSummaryModelName,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+    });
 
-  return completion?.text?.trim() || '';
-}
+    return completion?.text?.trim() || '';
+  }
+
+  async buildSemanticQuery(
+    query: string,
+    contextSummary: string,
+  ): Promise<string> {
+    const prompt = `
+      Você é responsável por gerar uma consulta semântica otimizada para recuperar informações de uma base de conhecimento.
+
+      INSTRUÇÕES IMPORTANTES:
+      - Reescreva a pergunta do usuário em uma forma clara, objetiva e completa.
+      - Inclua termos relacionados e sinônimos que aumentem a chance de encontrar documentos relevantes.
+      - Leve em consideração o **HISTÓRICO DA CONVERSA** para manter a coerência do contexto.
+      - A consulta deve ser curta, mas precisa (máximo 2 frases).
+      - Não invente informações que não estejam na pergunta ou no contexto.
+      - Escreva sempre em português do Brasil.
+
+      --------------------
+      HISTÓRICO DA CONVERSA:
+      ${contextSummary || 'Nenhum histórico foi encontrado.'}
+      --------------------
+
+      --------------------
+      PERGUNTA ORIGINAL DO USUÁRIO:
+      ${query}
+      --------------------
+
+      Gere uma versão semanticamente otimizada da pergunta do usuário:
+  `.trim();
+
+    const completion = await this.ai.models.generateContent({
+      model: this.semanticQueryModelName,
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+    });
+
+    return completion?.text?.trim() || '';
+  }
 }
