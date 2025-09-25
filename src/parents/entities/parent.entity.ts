@@ -32,6 +32,9 @@ export class Parent {
   
   @Column({ nullable: true })
   currentMenuId?: string;
+
+  @Column({ nullable: true })
+  conversationState?: string;
   
   @Column({ nullable: true })
   contextSummary: string;
