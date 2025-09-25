@@ -1,3 +1,4 @@
+import { Reminder } from '../../reminders/entities/reminder.entity';
 import { Child } from '../../children/entities/child.entity';
 import { Menu } from '../../menus/entities/menu.entity';
 import { Option } from '../../menus/entities/option.entity';
@@ -28,6 +29,9 @@ export class Parent {
 
   @OneToMany(() => Child, (child) => child.parent, { cascade: true })
   children: Child[];
+
+  @OneToMany(() => Reminder, reminder => reminder.parent, { cascade: true })
+  reminders: Reminder[];
 
   @OneToOne(() => Child, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()

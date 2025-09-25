@@ -16,6 +16,9 @@ import { ChildrenModule } from './children/children.module';
 import { environments } from './common/constants/environments';
 import { typeormConfigs } from './configs/typeorm';
 import { GeminiAiService } from './gemini-ai/gemini-ai.service';
+import { RemindersModule } from './reminders/reminders.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { RemindersCronService } from './crons/reminders/reminders-cron.service';
 import 'dotenv/config';
 
 @Module({
@@ -28,6 +31,8 @@ import 'dotenv/config';
     ParentsModule,
     MenusModule,
     ChildrenModule,
+    RemindersModule,
+    ScheduleModule.forRoot()
   ],
   controllers: [AppController],
   providers: [
@@ -39,6 +44,7 @@ import 'dotenv/config';
     WhatsappWebService,
     MessageHandlerService,
     GeminiAiService,
+    RemindersCronService,
   ],
 })
 export class AppModule {}
