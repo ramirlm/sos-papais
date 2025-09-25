@@ -16,6 +16,7 @@ import { ChildrenModule } from './children/children.module';
 import { environments } from './common/constants/environments';
 import { typeormConfigs } from './configs/typeorm';
 import { GeminiAiService } from './gemini-ai/gemini-ai.service';
+import { ActionsModule } from './actions/actions.module';
 import 'dotenv/config';
 
 @Module({
@@ -28,6 +29,7 @@ import 'dotenv/config';
     ParentsModule,
     MenusModule,
     ChildrenModule,
+    ActionsModule,
   ],
   controllers: [AppController],
   providers: [
