@@ -14,12 +14,7 @@ export class SelectChildActionHandler extends Action<ISelectChildActionHandlerPr
     super();
   }
   async execute() {
-    const {
-      parentsService,
-      parent,
-      lastChosenOptionId,
-      body,
-    } = this.props;
+    const { parentsService, parent, lastChosenOptionId, body } = this.props;
 
     if (!parent.children || parent.children.length === 0) {
       return {

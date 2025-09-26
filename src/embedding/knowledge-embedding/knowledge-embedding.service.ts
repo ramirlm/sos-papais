@@ -15,7 +15,6 @@ export class KnowledgeEmbeddingService {
   ) {}
 
   async embedKnowledgeBase(): Promise<{ documentsCount: number }> {
-
     const files = fs
       .readdirSync(this.knowledgeBasePath)
       .filter((file) => file.endsWith('.md'));
