@@ -6,5 +6,6 @@ import { Child } from './entities/child.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([Child])],
   providers: [ChildrenService],
+  exports: [ChildrenService],
 })
 export class ChildrenModule {}
