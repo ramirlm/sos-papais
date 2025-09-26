@@ -1,16 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { pipeline } from '@xenova/transformers';
 
 @Injectable()
-export class EmbeddingService {
+export class EmbeddingService implements OnModuleInit {
   private readonly logger = new Logger(EmbeddingService.name);
   private embedder: any;
 
   // Modelo pode ser facilmente trocado aqui
   private readonly modelName = 'Xenova/bge-large-en-v1.5';
 
-  constructor() {
-    this.init();
+  async onModuleInit() {
+    await this.init();
   }
 
   async init() {
