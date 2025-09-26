@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Parent } from './entities/parent.entity';
 import { Repository } from 'typeorm';
+import { ChildrenService } from '../children/children.service';
 
 @Injectable()
 export class ParentsService {
   constructor(
     @InjectRepository(Parent)
     private readonly parentsRepository: Repository<Parent>,
+    private readonly childrenService: ChildrenService,
   ) {}
 
   async register({
@@ -42,7 +44,15 @@ export class ParentsService {
     });
   }
 
-  update(parent: Parent, updateParentDto: Parent) {
-    return this.parentsRepository.update({ id: parent.id }, updateParentDto);
+  async update(parent: Parent, { children, ...updateParentDto }: Parent) {
+    if (children != parent.children) {
+      for (let child of children) {
+        this.childrenService.setParent(child, parent);
+      }
+    }
+    await this.parentsRepository.update(
+      { phoneNumber: parent.phoneNumber },
+      updateParentDto,
+    );
   }
 }

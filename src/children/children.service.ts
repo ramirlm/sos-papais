@@ -32,6 +32,10 @@ export class ChildrenService {
     await this.childrenRepository.update(child.id, { birthDate });
   }
 
+  setParent(child: Child, parent: Parent) {
+    this.childrenRepository.update(child, parent)
+  }
+
   async removeChild(child: Child) {
     await this.childrenRepository.remove(child);
   }
