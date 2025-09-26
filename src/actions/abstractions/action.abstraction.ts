@@ -1,5 +1,5 @@
-import { CompletedAction } from "../interfaces/completed-action.interface";
+import { CompletedAction } from '../interfaces/completed-action.interface';
 
 export abstract class Action<T = {}> {
-    abstract execute(props: T): Promise<CompletedAction>;
+  abstract execute(props: T): Promise<CompletedAction>;
 }

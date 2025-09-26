@@ -21,7 +21,9 @@ import 'dotenv/config';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(typeormConfigs[process.env.NODE_ENV || environments.DEVELOPMENT]),
+    TypeOrmModule.forRoot(
+      typeormConfigs[process.env.NODE_ENV || environments.DEVELOPMENT],
+    ),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

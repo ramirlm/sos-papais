@@ -14,11 +14,7 @@ export class DeleteChildActionHandler extends Action<IDeleteChildActionHandlerPr
     super();
   }
   async execute() {
-    const {
-      parentsService,
-      childrenService,
-      parent,
-    } = this.props;
+    const { parentsService, childrenService, parent } = this.props;
 
     if (!parent.currentChild) {
       return {

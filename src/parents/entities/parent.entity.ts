@@ -3,7 +3,6 @@ import {
   Column,
   Entity,
   JoinColumn,
-  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -26,16 +25,16 @@ export class Parent {
 
   @Column()
   createdAt: Date;
-  
+
   @Column({ nullable: true })
   lastChosenOptionId?: string;
-  
+
   @Column({ nullable: true })
   currentMenuId?: string;
 
   @Column({ nullable: true })
   conversationState?: string;
-  
+
   @Column({ nullable: true })
   contextSummary: string;
 

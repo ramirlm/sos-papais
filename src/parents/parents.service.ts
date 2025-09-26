@@ -22,7 +22,7 @@ export class ParentsService {
       const createdParent = this.parentsRepository.create({
         phoneNumber,
       });
-      
+
       await this.parentsRepository.save(createdParent);
 
       return await this.findByPhone(phoneNumber);
