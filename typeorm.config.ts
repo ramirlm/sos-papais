@@ -3,7 +3,7 @@ import { typeormConfigs } from './src/configs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 export default new DataSource({
-  ...(typeormConfigs[environments.PRODUCTION] as DataSourceOptions),
+  ...(typeormConfigs[process.env.NODE_ENV || environments.DEVELOPMENT] as DataSourceOptions),
   entities: [`${process.cwd()}/**/*.entity.ts`],
   migrations: [`${process.cwd()}/migrations/*.ts`],
 });

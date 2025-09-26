@@ -5,7 +5,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { KnowledgesModule } from './knowledges/knowledges.module';
 import { KnowledgesService } from './knowledges/knowledges.service';
 import { EmbeddingService } from './embedding/embedding.service';
-import { OllamaAiService } from './ollama-ai/ollama-ai.service';
 import { KnowledgeEmbeddingService } from './embedding/knowledge-embedding/knowledge-embedding.service';
 import { WhatsappWebService } from './whatsapp-web/whatsapp-web.service';
 import { MessageHandlerService } from './message-handler/message-handler.service';
@@ -38,7 +37,6 @@ import 'dotenv/config';
     AppService,
     KnowledgesService,
     EmbeddingService,
-    OllamaAiService,
     KnowledgeEmbeddingService,
     WhatsappWebService,
     MessageHandlerService,
