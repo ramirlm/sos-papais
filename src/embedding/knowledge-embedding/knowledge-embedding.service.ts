@@ -7,7 +7,7 @@ import * as fs from 'fs';
 @Injectable()
 export class KnowledgeEmbeddingService {
   private static startedEmbedding = false;
-  private knowledgeBasePath = join(process.cwd(), 'src', 'knowledge-base');
+  private knowledgeBasePath = join(process.cwd(), 'knowledge-base');
 
   constructor(
     private readonly embeddingService: EmbeddingService,
@@ -15,7 +15,6 @@ export class KnowledgeEmbeddingService {
   ) {}
 
   async embedKnowledgeBase(): Promise<{ documentsCount: number }> {
-
     const files = fs
       .readdirSync(this.knowledgeBasePath)
       .filter((file) => file.endsWith('.md'));
@@ -40,8 +39,6 @@ export class KnowledgeEmbeddingService {
 
       console.log(`Vetorizando o arquivo: ${file}`);
       const embedding = await this.embeddingService.generateEmbedding(content);
-      console.log(`Embedding gerado para ${file}:`, embedding);
-
       await this.knowledgeService.insertKnowledge({ content, embedding });
     }
 

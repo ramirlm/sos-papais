@@ -3,10 +3,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { KnowledgesService } from '../knowledges/knowledges.service';
 import { EmbeddingService } from '../embedding/embedding.service';
-import { KnowledgeEmbeddingService } from '../embedding/knowledge-embedding/knowledge-embedding.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Child } from '../children/entities/child.entity';
 import { Knowledge } from '../knowledges/entities/knowledge.entity';
+import { join } from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class GeminiAiService {
@@ -22,7 +23,6 @@ export class GeminiAiService {
     private readonly configService: ConfigService,
     private readonly embeddingService: EmbeddingService,
     private readonly knowledgeService: KnowledgesService,
-    private readonly knowledgeEmbeddingService: KnowledgeEmbeddingService,
   ) {
     this.ai = new GoogleGenAI({
       apiKey: this.configService.get<string>('GOOGLE_GENAI_API_KEY'),
@@ -43,11 +43,9 @@ export class GeminiAiService {
     this.matchThreshold =
       Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
 
-    this.knowledgeEmbeddingService
-      .embedKnowledgeBase()
-      .then(({ documentsCount }) => {
-        this.documentsCount = documentsCount;
-      });
+    this.documentsCount = fs
+      .readdirSync(join(process.cwd(), 'knowledge-base'))
+      .filter((file) => file.endsWith('.md')).length;
   }
 
   async generateResponse(

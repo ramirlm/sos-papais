@@ -1,31 +1,23 @@
 import { Module } from '@nestjs/common';
 import { MenusService } from './menus.service';
-import { MenusController } from './menus.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Menu } from './entities/menu.entity';
-import { Option } from './entities/option.entity';
 import { ParentsService } from '../parents/parents.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Child } from '../children/entities/child.entity';
 import { ChildrenService } from '../children/children.service';
-import { OllamaAiService } from '../ollama-ai/ollama-ai.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { KnowledgesService } from '../knowledges/knowledges.service';
-import { KnowledgeEmbeddingService } from '../embedding/knowledge-embedding/knowledge-embedding.service';
 import { GeminiAiService } from '../gemini-ai/gemini-ai.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Menu, Option, Parent, Child])],
-  controllers: [MenusController],
+  imports: [TypeOrmModule.forFeature([Parent, Child])],
   providers: [
     MenusService,
     ParentsService,
     ChildrenService,
-    OllamaAiService,
     GeminiAiService,
     EmbeddingService,
     KnowledgesService,
-    KnowledgeEmbeddingService,
   ],
   exports: [MenusService],
 })

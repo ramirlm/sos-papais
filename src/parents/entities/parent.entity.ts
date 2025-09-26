@@ -1,12 +1,9 @@
 import { Reminder } from '../../reminders/entities/reminder.entity';
 import { Child } from '../../children/entities/child.entity';
-import { Menu } from '../../menus/entities/menu.entity';
-import { Option } from '../../menus/entities/option.entity';
 import {
   Column,
   Entity,
   JoinColumn,
-  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -21,11 +18,26 @@ export class Parent {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ nullable: true })
+  name: string;
+
   @Column()
   phoneNumber: string;
 
   @Column()
   createdAt: Date;
+
+  @Column({ nullable: true })
+  lastChosenOptionId?: string;
+
+  @Column({ nullable: true })
+  currentMenuId?: string;
+
+  @Column({ nullable: true })
+  conversationState?: string;
+
+  @Column({ nullable: true })
+  contextSummary: string;
 
   @OneToMany(() => Child, (child) => child.parent, { cascade: true })
   children: Child[];
@@ -36,21 +48,4 @@ export class Parent {
   @OneToOne(() => Child, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()
   currentChild: Child | null;
-
-  @Column({ nullable: true })
-  name: string;
-
-  @Column({ nullable: true })
-  contextSummary: string;
-
-  @ManyToOne(() => Option, { nullable: true })
-  @JoinColumn()
-  lastChosenOption: Option | null;
-
-  @ManyToOne(() => Menu, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn()
-  currentMenu: Menu | null;
-
-  @Column({ nullable: true })
-  conversationState?: string;
 }
