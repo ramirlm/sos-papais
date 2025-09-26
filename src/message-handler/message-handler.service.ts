@@ -3,7 +3,8 @@ import { WhatsappWebService } from '../whatsapp-web/whatsapp-web.service';
 import { ParentsService } from '../parents/parents.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { MenusService } from '../menus/menus.service';
-import { Option } from '../menus/entities/option.entity';
+import { Menu } from '../menus/interfaces/menu.interface';
+import { CompletedAction } from '../actions/interfaces/completed-action.interface';
 
 @Injectable()
 export class MessageHandlerService {
@@ -19,92 +20,79 @@ export class MessageHandlerService {
     const userPhoneNumber = from.replace('whatsapp:', '');
 
     const parent = await this.parentsService.findByPhone(userPhoneNumber);
+    const isParentRegistered = parent && parent.name;
 
-    if (!parent) return this.handleNotFoundParent(userPhoneNumber);
-    if (!parent.name) return this.handleParentName(userPhoneNumber, body);
-
-    this.handleConversation(parent, body);
+    if (isParentRegistered) {
+      this.handleConversation(parent, body);
+    } else {
+      this.handleRegister({
+        parent,
+        phoneNumber: userPhoneNumber,
+        message: body,
+      });
+    }
   }
 
-  async handleNotFoundParent(phoneNumber: string) {
-    this.parentsService.register(phoneNumber);
-    this.whatsappClient.sendWhatsAppMessage(
+  async handleRegister({
+    parent,
+    phoneNumber,
+    message,
+  }: {
+    parent: Parent | null;
+    phoneNumber: string;
+    message: string;
+  }) {
+    await this.parentsService.register({
       phoneNumber,
-      'Olá! Seja bem-vindo ao SOS Papais, parece que você é novo por aqui, qual o seu nome?',
-    );
-  }
+      message,
+    });
 
-  async handleParentName(phoneNumber: string, name: string) {
-    await this.parentsService.updateName(phoneNumber, name);
-    const parent = await this.parentsService.findByPhone(phoneNumber)
-    await this.whatsappClient.sendWhatsAppMessage(
-      phoneNumber,
-      `Obrigado por compartilhar seu nome, ${name}! Seja bem-vindo ao SOS Papais!`,
-    );
-    if(parent)
-      await this.handleInitialMenu(parent);
+    if (!parent) {
+      this.whatsappClient.sendWhatsAppMessage(
+        phoneNumber,
+        'Olá! Seja bem-vindo ao SOS Papais, parece que você é novo por aqui, qual o seu nome?',
+      );
+    } else {
+      await this.whatsappClient.sendWhatsAppMessage(
+        phoneNumber,
+        `Obrigado por compartilhar seu nome, ${parent.name}! Seja bem-vindo ao SOS Papais!`,
+      );
+    }
   }
 
   async handleConversation(parent: Parent, body: string) {
-    if (!parent.currentMenu) return this.handleInitialMenu(parent);
+    const result = await this.menusService.handleMenuInteraction({
+      parent,
+      message: body,
+    });
 
-    const currentMenu = await this.menusService.findOne(parent.currentMenu.id);
-    let chosenOption: Option | null = parent.lastChosenOption;
-
-    if (!chosenOption) {
-      if (!currentMenu)
-        return this.whatsappClient.sendWhatsAppMessage(
-          parent.phoneNumber,
-          'Desculpe, no momento não há menus disponíveis.',
-        );
-
-      chosenOption = currentMenu.options[parseInt(body) - 1];
-
-      if (!chosenOption)
-        return this.whatsappClient.sendWhatsAppMessage(
-          parent.phoneNumber,
-          `Desculpe, a opção escolhida não é válida.\n\nCriança: ${parent.currentChild?.name || 'não selecionada'}\n\nSelecione uma opção válida.\n\n${currentMenu.options.map((opt, index) => `${index + 1}. ${opt.label}${index === currentMenu.options.length - 1 ? '' : '\n'}`).join('')}
-        `,
-        );
-    }
-
-
-    const result = await this.menusService[parent.currentMenu.label](
-        parent.currentMenu,
-        chosenOption,
-        parent,
-        body,
-      )
-
-    if(typeof result === 'string') {
+    if ((result as Menu)?.label) {
+      const menu = result as Menu;
+      const isMainMenu = menu.id === 'root';
+      const greetingMessage = `Olá ${parent.name}! Como posso te ajudar?\n\n`;
+      const renderedMenu = this.menusService.renderMenuOptions(menu);
       this.whatsappClient.sendWhatsAppMessage(
-      parent.phoneNumber,
-      result
-    )} else if(result && result.response && result.sendMenu) {
-      await this.whatsappClient.sendWhatsAppMessage(
         parent.phoneNumber,
-        result.response
+        isMainMenu ? greetingMessage + renderedMenu : renderedMenu,
       );
-      const revalidatedParent = await this.parentsService.findByPhone(parent.phoneNumber)
-      if(revalidatedParent) await this.handleInitialMenu(revalidatedParent);
+    } else {
+      const completedAction = result as CompletedAction;
+      this.whatsappClient.sendWhatsAppMessage(
+        parent.phoneNumber,
+        completedAction.response,
+      );
+      if (completedAction.showMenuOnFinish) {
+        const menu = this.menusService.getMainMenu();
+        this.whatsappClient.sendWhatsAppMessage(
+          parent.phoneNumber,
+          this.menusService.renderMenuOptions(menu),
+        );
+      }
+      this.parentsService.update(parent, {
+        ...parent,
+        lastChosenOptionId: '',
+        currentMenuId: '',
+      });
     }
-
-  }
-
-  async handleInitialMenu(parent: Parent) {
-    const initialMenu = await this.menusService.findInitialMenu();
-    if (!initialMenu)
-      return this.whatsappClient.sendWhatsAppMessage(
-        parent.phoneNumber,
-        'Desculpe, no momento não há menus disponíveis.',
-      );
-
-    await this.whatsappClient.sendWhatsAppMessage(
-      parent.phoneNumber,
-      `Olá, ${parent.name}!\n\nComo posso te ajudar hoje?\n\nCriança: ${parent.currentChild?.name || 'não selecionada'}\n\n${initialMenu.options.map((opt, index) => `${index + 1}. ${opt.label}${index === initialMenu.options.length - 1 ? '' : '\n'}`).join('')}
-      `,
-    );
-
-    this.parentsService.updateCurrentMenu(parent.phoneNumber, initialMenu);
   }
 }
