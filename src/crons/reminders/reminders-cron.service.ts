@@ -24,8 +24,8 @@ export class RemindersCronService {
         `Lembrete: ${reminder.message} \n- Data: ${reminder.dueDate.toLocaleDateString('pt-BR')} \n- Hora: ${reminder.dueDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
       );
 
-      if(Date.now() >= new Date(reminder.dueDate).getTime()) {
-        this.remindersService.remove(reminder)
+      if (Date.now() >= new Date(reminder.dueDate).getTime()) {
+        this.remindersService.remove(reminder);
       }
     }
   }
