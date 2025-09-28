@@ -4,7 +4,7 @@ import { ParentsService } from '../parents/parents.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { MenusService } from '../menus/menus.service';
 import { Menu } from '../menus/interfaces/menu.interface';
-import { CompletedAction } from '../actions/interfaces/completed-action.interface';
+import { ActionResult } from '../actions/interfaces/completed-action.interface';
 
 @Injectable()
 export class MessageHandlerService {
@@ -42,25 +42,47 @@ export class MessageHandlerService {
     phoneNumber: string;
     message: string;
   }) {
-    await this.parentsService.register({
+    const revalidatedParent = await this.parentsService.register({
       phoneNumber,
       message,
     });
 
     if (!parent) {
-      this.whatsappClient.sendWhatsAppMessage(
+      await this.whatsappClient.sendWhatsAppMessage(
         phoneNumber,
         'Olá! Seja bem-vindo ao SOS Papais, parece que você é novo por aqui, qual o seu nome?',
       );
     } else {
-      await this.whatsappClient.sendWhatsAppMessage(
+      await await this.whatsappClient.sendWhatsAppMessage(
         phoneNumber,
-        `Obrigado por compartilhar seu nome, ${parent.name}! Seja bem-vindo ao SOS Papais!`,
+        `Obrigado por compartilhar seu nome, ${revalidatedParent?.name}! Seja bem-vindo ao SOS Papais!`,
       );
+
+      if (revalidatedParent) this.handleConversation(revalidatedParent, '');
     }
   }
 
   async handleConversation(parent: Parent, body: string) {
+    const greetingMessage = `Olá ${parent.name}! Como posso te ajudar?\n\n`;
+    const currentChildMessage = `Criança selectionada: ${parent.currentChild?.name || 'Nenhuma criança selecionada'}\n\n`;
+
+    if (body === '0') {
+      const menu = this.menusService.getMainMenu();
+      await this.whatsappClient.sendWhatsAppMessage(
+        parent.phoneNumber,
+        greetingMessage +
+          currentChildMessage +
+          this.menusService.renderMenuOptions(menu),
+      );
+      this.parentsService.update(parent, {
+        conversationState: '',
+        currentMenuId: 'root',
+        lastChosenOptionId: '',
+        contextSummary: '',
+      });
+      return;
+    }
+
     const result = await this.menusService.handleMenuInteraction({
       parent,
       message: body,
@@ -69,30 +91,38 @@ export class MessageHandlerService {
     if ((result as Menu)?.label) {
       const menu = result as Menu;
       const isMainMenu = menu.id === 'root';
-      const greetingMessage = `Olá ${parent.name}! Como posso te ajudar?\n\n`;
       const renderedMenu = this.menusService.renderMenuOptions(menu);
-      this.whatsappClient.sendWhatsAppMessage(
+      await this.whatsappClient.sendWhatsAppMessage(
         parent.phoneNumber,
-        isMainMenu ? greetingMessage + renderedMenu : renderedMenu,
+        isMainMenu
+          ? greetingMessage + currentChildMessage + renderedMenu
+          : renderedMenu,
       );
     } else {
-      const completedAction = result as CompletedAction;
-      this.whatsappClient.sendWhatsAppMessage(
+      const actionResult = result as ActionResult;
+      await this.whatsappClient.sendWhatsAppMessage(
         parent.phoneNumber,
-        completedAction.response,
+        actionResult.response,
       );
-      if (completedAction.showMenuOnFinish) {
+      if (actionResult.finished) {
         const menu = this.menusService.getMainMenu();
-        this.whatsappClient.sendWhatsAppMessage(
+        await this.whatsappClient.sendWhatsAppMessage(
           parent.phoneNumber,
           this.menusService.renderMenuOptions(menu),
         );
+        this.parentsService.update(parent, {
+          conversationState: '',
+          currentMenuId: 'root',
+          lastChosenOptionId: '',
+          contextSummary: '',
+        });
       }
-      this.parentsService.update(parent, {
-        ...parent,
-        lastChosenOptionId: '',
-        currentMenuId: '',
-      });
+      if (actionResult.rerenderOptions && actionResult.menu) {
+        await this.whatsappClient.sendWhatsAppMessage(
+          parent.phoneNumber,
+          this.menusService.renderMenuOptions(actionResult.menu),
+        );
+      }
     }
   }
 }

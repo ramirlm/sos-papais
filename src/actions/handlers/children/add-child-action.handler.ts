@@ -12,23 +12,23 @@ interface IAddChildActionHandlerProps {
 }
 
 export class AddChildActionHandler extends Action<IAddChildActionHandlerProps> {
-  constructor(private readonly props: IAddChildActionHandlerProps) {
+  constructor() {
     super();
   }
-  async execute() {
+  async execute(props: IAddChildActionHandlerProps) {
     const {
       parentsService,
       childrenService,
       parent,
       lastChosenOptionId,
       body,
-    } = this.props;
+    } = props;
 
     if (!parent.lastChosenOptionId) {
-      parentsService.update(parent, { ...parent, lastChosenOptionId });
+      parentsService.update(parent, { lastChosenOptionId });
       return {
         response: 'Por favor, envie o nome da criança.',
-        showMenuOnFinish: false,
+        finished: false,
       };
     }
 
@@ -36,16 +36,15 @@ export class AddChildActionHandler extends Action<IAddChildActionHandlerProps> {
       const child = await childrenService.createChild(parent, body);
 
       parentsService.update(parent, {
-        ...parent,
         conversationState: 'waiting_for_dob',
       });
 
-      parentsService.update(parent, { ...parent, currentChild: child });
+      parentsService.update(parent, { currentChild: child });
 
       return {
         response:
           'Certo! Agora envie a data de nascimento da criança. (DD/MM/AAAA)',
-        showMenuOnFinish: false,
+        finished: false,
       };
     }
 
@@ -53,7 +52,7 @@ export class AddChildActionHandler extends Action<IAddChildActionHandlerProps> {
       if (!parent.currentChild) {
         return {
           response: 'Nenhuma criança selecionada.',
-          showMenuOnFinish: false,
+          finished: false,
         };
       }
 
@@ -62,29 +61,27 @@ export class AddChildActionHandler extends Action<IAddChildActionHandlerProps> {
         body,
       );
 
-      if (response) return { response, showMenuOnFinish: false };
+      if (response) return { response, finished: false };
 
       parentsService.update(parent, {
-        ...parent,
         conversationState: '',
         lastChosenOptionId: '',
       });
 
       return {
         response: 'Data de nascimento da criança atualizada com sucesso.',
-        showMenuOnFinish: true,
+        finished: true,
       };
     }
 
     parentsService.update(parent, {
-      ...parent,
       conversationState: '',
       lastChosenOptionId: '',
     });
 
     return {
       response: 'Voltando para o menu inicial...',
-      showMenuOnFinish: true,
+      finished: true,
     };
   }
 }

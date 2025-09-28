@@ -1,15 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ParentsService } from '../parents/parents.service';
-import { ChildrenService } from '../children/children.service';
-import { GeminiAiService } from '../gemini-ai/gemini-ai.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Menu } from './interfaces/menu.interface';
-import { AddChildActionHandler } from '../actions/handlers/children/add-child-action.handler';
-import { DeleteChildActionHandler } from '../actions/handlers/children/delete-child-action.handler';
-import { SelectChildActionHandler } from '../actions/handlers/children/select-child-action.handler';
-import { AskAboutChildActionHandler } from '../actions/handlers/children/ask-about-child-action.handler';
-import { UpdateNameActionHandler } from '../actions/handlers/user/update-name-action.handler';
-import { CompletedAction } from '../actions/interfaces/completed-action.interface';
+import { MenuFactoryService } from './menu-factory.service';
 
 @Injectable()
 export class MenusService {
@@ -17,10 +10,9 @@ export class MenusService {
 
   constructor(
     private readonly parentsService: ParentsService,
-    private readonly childrenService: ChildrenService,
-    private readonly aiService: GeminiAiService,
+    private readonly menuFactory: MenuFactoryService,
   ) {
-    this.menuTree = this.handleMenuCreation();
+    this.menuTree = this.menuFactory.createMenuTree();
   }
 
   async handleMenuInteraction({
@@ -30,54 +22,74 @@ export class MenusService {
     parent: Parent;
     message: string;
   }) {
-    // Default to root menu if no current menu is set
-    const currentMenu = parent.currentMenuId
-      ? this.findMenuById(this.menuTree, parent.currentMenuId)
-      : this.menuTree;
+    // Resume ongoing action if any
+    if (parent.lastChosenOptionId) {
+      return await this.resumeOngoingAction(parent, message);
+    }
+
+    // Initialize menu for new parent
+    if (!parent.currentMenuId) {
+      await this.setCurrentMenu(parent, this.menuTree.id);
+      return this.menuTree;
+    }
+
+    const currentMenu =
+      this.findMenuById(this.menuTree, parent.currentMenuId) || this.menuTree;
 
     const numericChoice = Number(message.trim());
 
-    // Invalid input (not a number or not a valid option)
-    if (isNaN(numericChoice) || !currentMenu?.options[numericChoice]) {
-      return {
-        response:
-          'Desculpe, não entendi sua resposta. Por favor, digite o número da opção.',
-        showMenuOnFinish: true,
-      } as CompletedAction;
+    if (!this.isValidChoice(currentMenu, numericChoice)) {
+      return this.invalidChoiceResponse(currentMenu);
     }
 
     const selectedOption = currentMenu.options[numericChoice];
 
-    // If this is a navigation option (submenu)
+    // Navigation
     if (selectedOption.menu) {
-      await this.parentsService.update(parent, {
-        ...parent,
-        currentMenuId: selectedOption.menu.id,
-      }); // or save in DB
+      await this.setCurrentMenu(parent, selectedOption.menu.id);
       return selectedOption.menu;
     }
 
-    // If it's an action
+    // Execute action
     if (selectedOption.action) {
-      const result = await selectedOption.action(parent, message);
-      return result;
+      return await selectedOption.action(parent, message);
     }
 
+    // Fallback
     return this.menuTree;
   }
 
   renderMenuOptions(menu: Menu) {
     let renderedMenu = `${menu.label}:\n\n`;
-
     for (let i = 1; i <= Object.keys(menu.options).length; i++) {
       const option = menu.options[i];
-      if (option) {
-        renderedMenu += `${i}. ${option.label}\n`;
-      }
+      if (option) renderedMenu += `${i}. ${option.label}\n`;
     }
-
-    renderedMenu += `\nDigite o número da opção ou "menu" para voltar ao menu principal.`;
+    renderedMenu += `\nDigite o número da opção ou *0* para voltar ao menu principal.`;
     return renderedMenu;
+  }
+
+  getMainMenu() {
+    return this.menuTree;
+  }
+
+  private isValidChoice(menu: Menu | undefined, choice: number) {
+    return menu && !isNaN(choice) && !!menu.options[choice];
+  }
+
+  private invalidChoiceResponse(menu: Menu | undefined) {
+    return {
+      response: 'Por favor, digite uma opção válida.',
+      finished: false,
+      rerenderOptions: true,
+      menu,
+    };
+  }
+
+  private async setCurrentMenu(parent: Parent, menuId: string) {
+    await this.parentsService.update(parent, {
+      currentMenuId: menuId,
+    });
   }
 
   private findMenuById(menu: Menu, id: string): Menu | undefined {
@@ -94,101 +106,41 @@ export class MenusService {
     return undefined;
   }
 
-  getMainMenu() {
-    return this.menuTree;
+  private findOptionById(menu: Menu, optionId: string) {
+    for (const key in menu.options) {
+      const option = menu.options[key];
+      if (option.id === optionId) return option;
+
+      if (option.menu) {
+        const found = this.findOptionById(option.menu, optionId);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
-  private handleMenuCreation() {
-    const parentsService = this.parentsService;
-    const childrenService = this.childrenService;
-    const aiService = this.aiService;
+  private async resumeOngoingAction(parent: Parent, message: string) {
+    const optionId = parent.lastChosenOptionId;
+    const option = this.findOptionById(this.menuTree, optionId!);
 
-    const children: Menu = {
-      id: 'children',
-      label: 'Crianças',
-      options: {
-        1: {
-          id: 'add-child',
-          label: 'Registrar nova criança',
-          action: async (parent: Parent, message: string) =>
-            await new AddChildActionHandler({
-              parentsService,
-              childrenService,
-              parent,
-              lastChosenOptionId: parent.lastChosenOptionId,
-              body: message,
-            }).execute(),
-        },
-        2: {
-          id: 'delete-child',
-          label: 'Deletar criança selecionada',
-          action: async (parent: Parent) =>
-            await new DeleteChildActionHandler({
-              parentsService,
-              childrenService,
-              parent,
-            }).execute(),
-        },
-        3: {
-          id: 'select-child',
-          label: 'Selecionar criança',
-          action: async (parent: Parent, message: string) =>
-            await new SelectChildActionHandler({
-              parentsService,
-              parent,
-              lastChosenOptionId: parent.lastChosenOptionId,
-              body: message,
-            }).execute(),
-        },
-        4: {
-          id: 'ask-about-child',
-          label: 'Perguntar sobre a criança selecionada',
-          action: async (parent: Parent, message: string) =>
-            await new AskAboutChildActionHandler({
-              parentsService,
-              aiService,
-              parent,
-              lastChosenOptionId: parent.lastChosenOptionId,
-              body: message,
-            }).execute(),
-        },
-      },
-    };
+    if (!option || !option.action) {
+      await this.clearActionState(parent);
+      return {
+        response: 'Algo deu errado. Voltando ao menu principal.',
+        finished: true,
+        rerenderOptions: true,
+        menu: this.menuTree,
+      };
+    }
 
-    const user: Menu = {
-      id: 'user',
-      label: 'Usuário',
-      options: {
-        1: {
-          id: 'update-name',
-          label: 'Atualizar nome',
-          action: async (parent: Parent, message: string) =>
-            await new UpdateNameActionHandler({
-              parentsService,
-              parent,
-              newName: message,
-            }).execute(),
-        },
-      },
-    };
+    return await option.action(parent, message);
+  }
 
-    const main: Menu = {
-      id: 'root',
-      label: 'Menu Principal',
-      options: {
-        1: {
-          id: 'children',
-          label: 'Crianças',
-          menu: children,
-        },
-        2: {
-          id: 'user',
-          label: 'Usuário',
-          menu: user,
-        },
-      },
-    };
-
-    return main;
+  private async clearActionState(parent: Parent) {
+    await this.parentsService.update(parent, {
+      currentMenuId: 'root',
+      lastChosenOptionId: '',
+      conversationState: '',
+    });
   }
 }

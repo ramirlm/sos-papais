@@ -5,36 +5,35 @@ import { Parent } from '../../../parents/entities/parent.entity';
 interface IUpdateNameActionHandlerProps {
   parentsService: ParentsService;
   parent: Parent;
+  lastChosenOptionId: string;
   newName: string;
 }
 
 export class UpdateNameActionHandler extends Action<IUpdateNameActionHandlerProps> {
-  constructor(private readonly props: IUpdateNameActionHandlerProps) {
+  constructor() {
     super();
   }
-  async execute() {
-    const { parentsService, parent, newName } = this.props;
+  async execute(props: IUpdateNameActionHandlerProps) {
+    const { parentsService, parent, lastChosenOptionId, newName } = props;
 
     if (!parent.lastChosenOptionId) {
       await parentsService.update(parent, {
-        ...parent,
-        lastChosenOptionId: 'update_name_action',
+        lastChosenOptionId,
       });
       return {
         response: 'Por favor, envie seu nome completo.',
-        showMenuOnFinish: false,
+        finished: false,
       };
     }
 
     await parentsService.update(parent, {
-      ...parent,
       name: newName,
       lastChosenOptionId: '',
     });
 
     return {
       response: 'Seu nome foi alterado com sucesso.',
-      showMenuOnFinish: true,
+      finished: true,
     };
   }
 }
