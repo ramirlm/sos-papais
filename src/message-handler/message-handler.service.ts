@@ -53,7 +53,7 @@ export class MessageHandlerService {
         'Olá! Seja bem-vindo ao SOS Papais, parece que você é novo por aqui, qual o seu nome?',
       );
     } else {
-      await await this.whatsappClient.sendWhatsAppMessage(
+      await this.whatsappClient.sendWhatsAppMessage(
         phoneNumber,
         `Obrigado por compartilhar seu nome, ${revalidatedParent?.name}! Seja bem-vindo ao SOS Papais!`,
       );
@@ -106,9 +106,10 @@ export class MessageHandlerService {
       );
       if (actionResult.finished) {
         const menu = this.menusService.getMainMenu();
+        const renderedMenu = this.menusService.renderMenuOptions(menu);
         await this.whatsappClient.sendWhatsAppMessage(
           parent.phoneNumber,
-          this.menusService.renderMenuOptions(menu),
+          greetingMessage + currentChildMessage + renderedMenu,
         );
         this.parentsService.update(parent, {
           conversationState: '',

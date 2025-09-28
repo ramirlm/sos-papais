@@ -1,3 +1,4 @@
+import { Reminder } from '../../reminders/entities/reminder.entity';
 import { Child } from '../../children/entities/child.entity';
 import {
   Column,
@@ -40,6 +41,13 @@ export class Parent {
 
   @OneToMany(() => Child, (child) => child.parent, { cascade: true })
   children: Child[];
+
+  @OneToMany(() => Reminder, (reminder) => reminder.parent, { cascade: true })
+  reminders: Reminder[];
+
+  @OneToOne(() => Reminder, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn()
+  lastCreatedReminder: Reminder | null;
 
   @OneToOne(() => Child, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()

@@ -8,6 +8,10 @@ import { DeleteChildActionHandler } from '../actions/handlers/children/delete-ch
 import { SelectChildActionHandler } from '../actions/handlers/children/select-child-action.handler';
 import { AskAboutChildActionHandler } from '../actions/handlers/children/ask-about-child-action.handler';
 import { UpdateNameActionHandler } from '../actions/handlers/user/update-name-action.handler';
+import { AddReminderActionHandler } from '../actions/handlers/reminders/add-reminder-action.handler';
+import { RemindersService } from '../reminders/reminders.service';
+import { ListRemindersActionHandler } from '../actions/handlers/reminders/list-reminders-action.handler';
+import { DeleteReminderActionHandler } from '../actions/handlers/reminders/delete-reminder-action.handler';
 
 @Injectable()
 export class MenuFactoryService {
@@ -15,17 +19,22 @@ export class MenuFactoryService {
     private readonly parentsService: ParentsService,
     private readonly childrenService: ChildrenService,
     private readonly aiService: GeminiAiService,
+    private readonly remindersService: RemindersService,
     private readonly addChildHandler: AddChildActionHandler,
     private readonly deleteChildHandler: DeleteChildActionHandler,
     private readonly selectChildHandler: SelectChildActionHandler,
     private readonly askAboutChildHandler: AskAboutChildActionHandler,
     private readonly updateNameHandler: UpdateNameActionHandler,
+    private readonly addReminderHandler: AddReminderActionHandler,
+    private readonly listRemindersHandler: ListRemindersActionHandler,
+    private readonly deleteReminderHandler: DeleteReminderActionHandler,
   ) {}
 
   createMenuTree(): Menu {
     const parentsService = this.parentsService;
     const childrenService = this.childrenService;
     const aiService = this.aiService;
+    const remindersService = this.remindersService;
 
     const children: Menu = {
       id: 'children',
@@ -97,6 +106,45 @@ export class MenuFactoryService {
       },
     };
 
+    const reminders: Menu = {
+      id: 'reminders',
+      label: 'Lembretes',
+      options: {
+        1: {
+          id: 'add-reminder',
+          label: 'Criar novo lembrete',
+          action: async (parent, message) =>
+            await this.addReminderHandler.execute({
+              parentsService,
+              remindersService,
+              parent,
+              lastChosenOptionId: 'add-reminder',
+              body: message,
+            }),
+        },
+        2: {
+          id: 'list-reminder',
+          label: 'Listar lembretes',
+          action: async (parent, message) =>
+            await this.listRemindersHandler.execute({
+              parent,
+            }),
+        },
+        3: {
+          id: 'delete-reminder',
+          label: 'Deletar lembrete',
+          action: async (parent, message) =>
+            await this.deleteReminderHandler.execute({
+              parentsService,
+              remindersService,
+              parent,
+              lastChosenOptionId: 'delete-reminder',
+              body: message,
+            }),
+        },
+      },
+    };
+
     const main: Menu = {
       id: 'root',
       label: 'Menu Principal',
@@ -110,6 +158,11 @@ export class MenuFactoryService {
           id: 'user',
           label: 'Usuário',
           menu: user,
+        },
+        3: {
+          id: 'reminders',
+          label: 'Lembretes',
+          menu: reminders,
         },
       },
     };

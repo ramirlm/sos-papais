@@ -10,9 +10,14 @@ import { KnowledgesService } from '../knowledges/knowledges.service';
 import { GeminiAiService } from '../gemini-ai/gemini-ai.service';
 import { MenuFactoryService } from './menu-factory.service';
 import { ActionsModule } from '../actions/actions.module';
+import { RemindersModule } from '../reminders/reminders.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Parent, Child]), ActionsModule],
+  imports: [
+    TypeOrmModule.forFeature([Parent, Child]),
+    ActionsModule,
+    RemindersModule,
+  ],
   providers: [
     MenusService,
     MenuFactoryService,

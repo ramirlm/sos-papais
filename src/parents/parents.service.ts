@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Parent } from './entities/parent.entity';
 import { Repository } from 'typeorm';
 import { ChildrenService } from '../children/children.service';
+import { RemindersService } from '../reminders/reminders.service';
 
 @Injectable()
 export class ParentsService {
@@ -10,6 +11,7 @@ export class ParentsService {
     @InjectRepository(Parent)
     private readonly parentsRepository: Repository<Parent>,
     private readonly childrenService: ChildrenService,
+    private readonly remindersService: RemindersService,
   ) {}
 
   async register({
@@ -40,17 +42,24 @@ export class ParentsService {
       relations: {
         children: true,
         currentChild: true,
+        reminders: true,
+        lastCreatedReminder: true,
       },
     });
   }
 
   async update(
     parent: Parent,
-    { children, ...updateParentDto }: Partial<Parent>,
+    { children, reminders, ...updateParentDto }: Partial<Parent>,
   ) {
     if (children && children != parent.children) {
       for (let child of children) {
         this.childrenService.setParent(child, parent);
+      }
+    }
+    if (reminders && reminders != parent.reminders) {
+      for (let reminder of reminders) {
+        this.remindersService.setParent(reminder, parent);
       }
     }
     await this.parentsRepository.update(
