@@ -29,7 +29,7 @@ export class ParentsService {
 
       return await this.findByPhone(phoneNumber);
     } else {
-      await this.update(parent, { ...parent, name: message });
+      await this.update(parent, { name: message });
       return await this.findByPhone(phoneNumber);
     }
   }
@@ -44,8 +44,11 @@ export class ParentsService {
     });
   }
 
-  async update(parent: Parent, { children, ...updateParentDto }: Parent) {
-    if (children != parent.children) {
+  async update(
+    parent: Parent,
+    { children, ...updateParentDto }: Partial<Parent>,
+  ) {
+    if (children && children != parent.children) {
       for (let child of children) {
         this.childrenService.setParent(child, parent);
       }

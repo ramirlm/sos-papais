@@ -12,43 +12,40 @@ interface IAskAboutChildActionHandlerProps {
 }
 
 export class AskAboutChildActionHandler extends Action<IAskAboutChildActionHandlerProps> {
-  constructor(private readonly props: IAskAboutChildActionHandlerProps) {
+  constructor() {
     super();
   }
-  async execute() {
+  async execute(props: IAskAboutChildActionHandlerProps) {
     const { parentsService, aiService, parent, lastChosenOptionId, body } =
-      this.props;
+      props;
 
     if (!parent.currentChild) {
       return {
         response: 'Nenhuma criança selecionada.',
-        showMenuOnFinish: true,
+        finished: true,
       };
     }
 
     if (!parent.lastChosenOptionId) {
       parentsService.update(parent, {
-        ...parent,
         lastChosenOptionId,
         conversationState: 'asking_about_selected_child',
       });
 
       return {
         response: `Certo! Como posso ajudar com a criança selecionada: ${parent.currentChild.name}?`,
-        showMenuOnFinish: false,
+        finished: false,
       };
     }
 
     if (parent.conversationState === 'asking_about_selected_child') {
       if (body === '0') {
         parentsService.update(parent, {
-          ...parent,
           lastChosenOptionId: '',
           conversationState: '',
         });
 
         parentsService.update(parent, {
-          ...parent,
           contextSummary: '',
           conversationState: '',
           lastChosenOptionId: '',
@@ -56,28 +53,27 @@ export class AskAboutChildActionHandler extends Action<IAskAboutChildActionHandl
 
         return {
           response: 'Voltando ao menu inicial...',
-          showMenuOnFinish: true,
+          finished: true,
         };
       } else {
         const { aiResponse, updatedContextSummary } =
           await aiService.generateResponse(body, parent, parent.currentChild);
 
         parentsService.update(parent, {
-          ...parent,
           contextSummary: updatedContextSummary,
         });
 
         return {
           response:
             aiResponse + '\n\nSe precisar voltar a o menu inicial, digite *0*.',
-          showMenuOnFinish: false,
+          finished: false,
         };
       }
     }
 
     return {
       response: 'Voltando para o menu inicial...',
-      showMenuOnFinish: true,
+      finished: true,
     };
   }
 }

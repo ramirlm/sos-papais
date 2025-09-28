@@ -58,7 +58,7 @@ export class GeminiAiService {
         query,
         parent.contextSummary,
       );
-      this.logger.log(`Consulta semântica gerada: "${questionText}"`);
+      this.logger.log(`\n\nConsulta semântica gerada: "${questionText}"\n\n`);
 
       const queryEmbedding =
         await this.embeddingService.generateEmbedding(questionText);
@@ -69,7 +69,7 @@ export class GeminiAiService {
         matchCount: this.documentsCount,
       });
 
-      this.logger.log(`${documents.length} documentos encontrados.`);
+      this.logger.log(`\n\n${documents.length} documentos encontrados.\n\n`);
 
       const contextText = documents
         .map((doc: Knowledge) => doc.content)
@@ -123,7 +123,7 @@ export class GeminiAiService {
         completion?.text?.trim() ||
         'Desculpe, não consegui gerar uma resposta.';
 
-      this.logger.log(`Conteúdo da resposta: "${aiResponse}"`);
+      this.logger.log(`\n\nConteúdo da resposta: "${aiResponse}"\n\n`);
 
       const updatedContextSummary = await this.generateContextSummary({
         contextSummary: parent.contextSummary,
@@ -132,7 +132,9 @@ export class GeminiAiService {
         usedKnowledge: contextText,
       });
 
-      this.logger.log(`Contexto atualizado: "${updatedContextSummary}"`);
+      this.logger.log(
+        `\n\nContexto atualizado: "${updatedContextSummary}"\n\n`,
+      );
 
       return { aiResponse, updatedContextSummary };
     } catch (error) {

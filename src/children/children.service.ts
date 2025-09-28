@@ -33,7 +33,7 @@ export class ChildrenService {
   }
 
   setParent(child: Child, parent: Parent) {
-    this.childrenRepository.update(child, parent)
+    this.childrenRepository.update(child, parent);
   }
 
   async removeChild(child: Child) {

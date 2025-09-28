@@ -10,25 +10,25 @@ interface IDeleteChildActionHandlerProps {
 }
 
 export class DeleteChildActionHandler extends Action<IDeleteChildActionHandlerProps> {
-  constructor(private readonly props: IDeleteChildActionHandlerProps) {
+  constructor() {
     super();
   }
-  async execute() {
-    const { parentsService, childrenService, parent } = this.props;
+  async execute(props: IDeleteChildActionHandlerProps) {
+    const { parentsService, childrenService, parent } = props;
 
     if (!parent.currentChild) {
       return {
         response: 'Nenhuma criança selecionada.',
-        showMenuOnFinish: true,
+        finished: true,
       };
     }
 
     childrenService.removeChild(parent.currentChild);
-    parentsService.update(parent, { ...parent, currentChild: null });
+    parentsService.update(parent, { currentChild: null });
 
     return {
       response: 'Criança removida com sucesso.',
-      showMenuOnFinish: true,
+      finished: true,
     };
   }
 }

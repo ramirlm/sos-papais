@@ -8,17 +8,20 @@ import { ChildrenService } from '../children/children.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { KnowledgesService } from '../knowledges/knowledges.service';
 import { GeminiAiService } from '../gemini-ai/gemini-ai.service';
+import { MenuFactoryService } from './menu-factory.service';
+import { ActionsModule } from '../actions/actions.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Parent, Child])],
+  imports: [TypeOrmModule.forFeature([Parent, Child]), ActionsModule],
   providers: [
     MenusService,
+    MenuFactoryService,
     ParentsService,
     ChildrenService,
     GeminiAiService,
     EmbeddingService,
     KnowledgesService,
   ],
-  exports: [MenusService],
+  exports: [MenusService, MenuFactoryService],
 })
 export class MenusModule {}
