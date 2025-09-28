@@ -10,6 +10,7 @@ import { AskAboutChildActionHandler } from '../actions/handlers/children/ask-abo
 import { UpdateNameActionHandler } from '../actions/handlers/user/update-name-action.handler';
 import { AddReminderActionHandler } from '../actions/handlers/reminders/add-reminder-action.handler';
 import { RemindersService } from '../reminders/reminders.service';
+import { ListRemindersActionHandler } from '../actions/handlers/reminders/list-reminders-action.handler';
 
 @Injectable()
 export class MenuFactoryService {
@@ -24,6 +25,7 @@ export class MenuFactoryService {
     private readonly askAboutChildHandler: AskAboutChildActionHandler,
     private readonly updateNameHandler: UpdateNameActionHandler,
     private readonly addReminderHandler: AddReminderActionHandler,
+    private readonly listRemindersHandler: ListRemindersActionHandler,
   ) {}
 
   createMenuTree(): Menu {
@@ -116,6 +118,14 @@ export class MenuFactoryService {
               parent,
               lastChosenOptionId: 'add-reminder',
               body: message,
+            }),
+        },
+        2: {
+          id: 'list-reminder',
+          label: 'Listar lembretes',
+          action: async (parent, message) =>
+            await this.listRemindersHandler.execute({
+              parent,
             }),
         },
       },
