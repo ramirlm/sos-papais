@@ -11,6 +11,7 @@ import { UpdateNameActionHandler } from '../actions/handlers/user/update-name-ac
 import { AddReminderActionHandler } from '../actions/handlers/reminders/add-reminder-action.handler';
 import { RemindersService } from '../reminders/reminders.service';
 import { ListRemindersActionHandler } from '../actions/handlers/reminders/list-reminders-action.handler';
+import { DeleteReminderActionHandler } from '../actions/handlers/reminders/delete-reminder-action.handler';
 
 @Injectable()
 export class MenuFactoryService {
@@ -26,6 +27,7 @@ export class MenuFactoryService {
     private readonly updateNameHandler: UpdateNameActionHandler,
     private readonly addReminderHandler: AddReminderActionHandler,
     private readonly listRemindersHandler: ListRemindersActionHandler,
+    private readonly deleteReminderHandler: DeleteReminderActionHandler,
   ) {}
 
   createMenuTree(): Menu {
@@ -126,6 +128,18 @@ export class MenuFactoryService {
           action: async (parent, message) =>
             await this.listRemindersHandler.execute({
               parent,
+            }),
+        },
+        3: {
+          id: 'delete-reminder',
+          label: 'Deletar lembrete',
+          action: async (parent, message) =>
+            await this.deleteReminderHandler.execute({
+              parentsService,
+              remindersService,
+              parent,
+              lastChosenOptionId: 'delete-reminder',
+              body: message,
             }),
         },
       },
