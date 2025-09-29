@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EmbeddingService } from '../embedding.service';
 import { KnowledgesService } from '../../knowledges/knowledges.service';
+import { getMarkdownFilesRecursively } from '../../common/utils/getMarkdownFilesRecursively';
 import { join } from 'path';
 import * as fs from 'fs';
 
@@ -14,15 +15,14 @@ export class KnowledgeEmbeddingService {
     private readonly knowledgeService: KnowledgesService,
   ) {}
 
-  async embedKnowledgeBase(): Promise<{ documentsCount: number }> {
-    const files = fs
-      .readdirSync(this.knowledgeBasePath)
-      .filter((file) => file.endsWith('.md'));
+  async embedKnowledgeBase() {
+    const files = getMarkdownFilesRecursively(this.knowledgeBasePath);
 
     if (await this.knowledgeService.isEmbedded()) {
       console.log('Base de conhecimento já vetorizada, pulando...');
       return { documentsCount: files.length };
     }
+
     if (KnowledgeEmbeddingService.startedEmbedding) {
       console.log('Vetorização já em andamento, pulando...');
       return { documentsCount: files.length };
@@ -32,18 +32,14 @@ export class KnowledgeEmbeddingService {
     console.log('Iniciando a vetorização da base de conhecimento...');
 
     for (const file of files) {
-      const content = fs.readFileSync(
-        join(this.knowledgeBasePath, file),
-        'utf-8',
-      );
+      const content = fs.readFileSync(file, 'utf-8');
+      const fileName = file.replace(this.knowledgeBasePath + '/', '');
 
-      console.log(`Vetorizando o arquivo: ${file}`);
+      console.log(`Vetorizando o arquivo: ${fileName}`);
       const embedding = await this.embeddingService.generateEmbedding(content);
       await this.knowledgeService.insertKnowledge({ content, embedding });
     }
 
     console.log('Vetorização concluída.');
-
-    return { documentsCount: files.length };
   }
 }

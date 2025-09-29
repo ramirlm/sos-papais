@@ -6,8 +6,8 @@ import { EmbeddingService } from '../embedding/embedding.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Child } from '../children/entities/child.entity';
 import { Knowledge } from '../knowledges/entities/knowledge.entity';
+import { getMarkdownFilesRecursively } from '../common/utils/getMarkdownFilesRecursively';
 import { join } from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class GeminiAiService {
@@ -43,9 +43,9 @@ export class GeminiAiService {
     this.matchThreshold =
       Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
 
-    this.documentsCount = fs
-      .readdirSync(join(process.cwd(), 'knowledge-base'))
-      .filter((file) => file.endsWith('.md')).length;
+    this.documentsCount = getMarkdownFilesRecursively(
+      join(process.cwd(), 'knowledge-base'),
+    ).length;
   }
 
   async generateResponse(
