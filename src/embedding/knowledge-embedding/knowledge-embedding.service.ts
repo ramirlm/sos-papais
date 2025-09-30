@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EmbeddingService } from '../embedding.service';
 import { KnowledgesService } from '../../knowledges/knowledges.service';
 import { getMarkdownFilesRecursively } from '../../common/utils/getMarkdownFilesRecursively';
+import { extractMarkdownTitle } from 'src/common/utils/extractMarkdownTitle';
 import { join } from 'path';
 import * as fs from 'fs';
 
@@ -15,31 +16,78 @@ export class KnowledgeEmbeddingService {
     private readonly knowledgeService: KnowledgesService,
   ) {}
 
-  async embedKnowledgeBase() {
-    const files = getMarkdownFilesRecursively(this.knowledgeBasePath);
+  splitTextIntoChunks(text, maxChunkSize = 1000) {
+    const paragraphs = text.split(/\n\s*\n/); // separa por parágrafos (linhas vazias)
+    const chunks: string[] = [];
+    let currentChunk = '';
 
-    if (await this.knowledgeService.isEmbedded()) {
-      console.log('Base de conhecimento já vetorizada, pulando...');
-      return { documentsCount: files.length };
+    for (const para of paragraphs) {
+      if ((currentChunk + para).length > maxChunkSize) {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+        }
+        // Se o parágrafo for maior que o maxChunkSize, quebra ele diretamente
+        if (para.length > maxChunkSize) {
+          for (let i = 0; i < para.length; i += maxChunkSize) {
+            chunks.push(para.slice(i, i + maxChunkSize).trim());
+          }
+        } else {
+          currentChunk = para + '\n\n';
+        }
+      } else {
+        currentChunk += para + '\n\n';
+      }
     }
 
-    if (KnowledgeEmbeddingService.startedEmbedding) {
-      console.log('Vetorização já em andamento, pulando...');
-      return { documentsCount: files.length };
+    if (currentChunk) {
+      chunks.push(currentChunk.trim());
     }
 
-    KnowledgeEmbeddingService.startedEmbedding = true;
-    console.log('Iniciando a vetorização da base de conhecimento...');
-
-    for (const file of files) {
-      const content = fs.readFileSync(file, 'utf-8');
-      const fileName = file.replace(this.knowledgeBasePath + '/', '');
-
-      console.log(`Vetorizando o arquivo: ${fileName}`);
-      const embedding = await this.embeddingService.generateEmbedding(content);
-      await this.knowledgeService.insertKnowledge({ content, embedding });
-    }
-
-    console.log('Vetorização concluída.');
+    return chunks;
   }
+
+  async embedKnowledgeBase() {
+  const files = getMarkdownFilesRecursively(this.knowledgeBasePath);
+
+  if (await this.knowledgeService.isEmbedded()) {
+    console.log('Base de conhecimento já vetorizada, pulando...');
+    return { documentsCount: files.length };
+  }
+
+  if (KnowledgeEmbeddingService.startedEmbedding) {
+    console.log('Vetorização já em andamento, pulando...');
+    return { documentsCount: files.length };
+  }
+
+  KnowledgeEmbeddingService.startedEmbedding = true;
+  console.log('Iniciando a vetorização da base de conhecimento...');
+
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf-8');
+    const fileName = file.replace(this.knowledgeBasePath + '/', '');
+
+    const title = extractMarkdownTitle(content) || fileName; // pega o título ou o nome do arquivo
+
+    console.log(`\nQuebrando o arquivo em chunks: ${fileName}`);
+    const chunks = this.splitTextIntoChunks(content);
+
+    for (const [index, chunk] of chunks.entries()) {
+      // prefixa o chunk com o título e o índice
+      const chunkWithTitle = `# ${title} - ${index + 1}/${chunks.length}\n\n${chunk}`;
+
+      console.log(
+        `Vetorizando chunk ${index + 1}/${chunks.length} do arquivo: ${fileName}`,
+      );
+      const embedding = await this.embeddingService.generateEmbedding(chunkWithTitle);
+      await this.knowledgeService.insertKnowledge({
+        content: chunkWithTitle,
+        embedding,
+      });
+    }
+  }
+
+  console.log('Vetorização concluída.');
+  KnowledgeEmbeddingService.startedEmbedding = false;
+}
 }

@@ -8,6 +8,9 @@ import { Child } from '../children/entities/child.entity';
 import { Knowledge } from '../knowledges/entities/knowledge.entity';
 import { getMarkdownFilesRecursively } from '../common/utils/getMarkdownFilesRecursively';
 import { join } from 'path';
+import { getChildAgeText } from '../common/utils/getChildAgeText';
+import { getKeywordFromFilePath } from '../common/utils/getKeywordFromFilePath';
+import { getFormattedFoundDocuments } from '../common/utils/getFormattedFoundDocuments';
 
 @Injectable()
 export class GeminiAiService {
@@ -17,6 +20,7 @@ export class GeminiAiService {
   private semanticQueryModelName: string;
   private matchThreshold: number;
   private documentsCount: number;
+  private knowledgeBasePath = join(process.cwd(), 'knowledge-base');
   private readonly logger = new Logger(GeminiAiService.name);
 
   constructor(
@@ -44,7 +48,7 @@ export class GeminiAiService {
       Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
 
     this.documentsCount = getMarkdownFilesRecursively(
-      join(process.cwd(), 'knowledge-base'),
+      this.knowledgeBasePath,
     ).length;
   }
 
@@ -57,6 +61,8 @@ export class GeminiAiService {
       const questionText = await this.buildSemanticQuery(
         query,
         parent.contextSummary,
+        parent,
+        child,
       );
       this.logger.log(`\n\nConsulta semântica gerada: "${questionText}"\n\n`);
 
@@ -70,26 +76,20 @@ export class GeminiAiService {
       });
 
       this.logger.log(`\n\n${documents.length} documentos encontrados.\n\n`);
+      this.logger.log(getFormattedFoundDocuments(documents));
 
       const contextText = documents
         .map((doc: Knowledge) => doc.content)
         .join('\n\n---\n\n');
 
-      const childMonths =
-        (new Date().getFullYear() - child.birthDate.getFullYear()) * 12 +
-        (new Date().getMonth() - child.birthDate.getMonth());
-
-      const childAgeText =
-        childMonths > 12
-          ? `${Math.floor(childMonths / 12)} anos${childMonths % 12 > 0 ? ` e ${childMonths % 12} meses` : ''}`
-          : `${childMonths} meses`;
+      const childAgeText = getChildAgeText(child);
 
       const prompt = `
         Você é um assistente virtual especialista em sono infantil e desenvolvimento de bebês. Sua missão é ajudar pais e mães com informações claras, empáticas e baseadas em evidências científicas, sempre em português do Brasil.
         
         INSTRUÇÕES IMPORTANTES:
         - Use **exclusivamente** as informações fornecidas nos campos CONTEXTO e HISTÓRICO DA CONVERSA abaixo para formular sua resposta.
-        - Se o contexto não for encontrado ou não for suficiente, responda que não há dados suficientes para responder à pergunta em sua base de dados.
+        - Se não houver informações suficientes no CONTEXTO, diga que não é possível responder com base nos dados disponíveis.
         - **Não invente informações**. Responda apenas com base no conteúdo fornecido.
         - Trate a criança como se você já a conhecesse: o nome dela é **${child.name}**, tem **${childAgeText}**, e o responsável que está conversando com você é **${parent.name}**.
         - Use o campo HISTÓRICO DA CONVERSA para **dar continuidade à conversa de forma natural**.
@@ -179,6 +179,7 @@ export class GeminiAiService {
         - A **base de dados utilizada** pela IA para gerar a resposta (se houver).
       - **Não invente informações** que não tenham sido mencionadas.
       - Deixe claro no resumo informações sobre a criança, como nome e idade, para que a IA possa se referir a elas em interações futuras.
+      - Retorne o resultado em formato de string separando cada interação com quebras de linha e sempre inclua o timestamp de cada interação.
 
       --------------------
       TIMESTAMP DA INTERAÇÃO ATUAL:
@@ -226,32 +227,25 @@ export class GeminiAiService {
     }
   }
 
-  async buildSemanticQuery(
+  // Nova função para gerar termos semânticos relacionados
+  async generateSemanticTerms(
     query: string,
     contextSummary: string,
-  ): Promise<string> {
+    keywords: string,
+  ): Promise<string[]> {
     const prompt = `
-      Você é responsável por gerar uma consulta semântica otimizada para recuperar informações de uma base de conhecimento.
+      Você é um assistente que gera palavras-chave e frases curtas relacionadas a um tema para melhorar a busca em uma base de conhecimento.
 
-      INSTRUÇÕES IMPORTANTES:
-      - Reescreva a pergunta do usuário em uma forma clara, objetiva e completa.
-      - Inclua termos relacionados e sinônimos que aumentem a chance de encontrar documentos relevantes.
-      - Leve em consideração o **HISTÓRICO DA CONVERSA** para manter a coerência do contexto.
-      - A consulta deve ser curta, mas precisa (máximo 2 frases).
-      - Não invente informações que não estejam na pergunta ou no contexto.
-      - Escreva sempre em português do Brasil.
+      INSTRUÇÕES:
+      - Baseie-se na pergunta do usuário e no histórico da conversa.
+      - Retorne uma lista de termos, palavras e expressões relacionadas que ajudem a encontrar documentos relevantes.
+      - Separe os termos por vírgula, sem explicações adicionais.
 
-      --------------------
-      HISTÓRICO DA CONVERSA:
-      ${contextSummary || 'Nenhum histórico foi encontrado.'}
-      --------------------
+      Pergunta do usuário: ${query}
+      Histórico da conversa: ${contextSummary || 'Nenhum histórico disponível.'}
+      Palavras-chave da base: ${keywords}
 
-      --------------------
-      PERGUNTA ORIGINAL DO USUÁRIO:
-      ${query}
-      --------------------
-
-      Gere uma versão semanticamente otimizada da pergunta do usuário:
+      Retorne apenas a lista de termos.
     `.trim();
 
     try {
@@ -260,14 +254,48 @@ export class GeminiAiService {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
 
-      const semanticQuery = completion?.text?.trim() || query;
-      return semanticQuery;
+      const termsText = completion?.text?.trim() || '';
+      return termsText
+        .split(',')
+        .map((term) => term.trim())
+        .filter(Boolean);
     } catch (error) {
       this.logger.error(
-        `Erro ao gerar consulta semântica: ${error.message}`,
+        `Erro ao gerar termos semânticos: ${error.message}`,
         error.stack,
       );
-      return query;
+      return [];
     }
+  }
+
+  // Função buildSemanticQuery atualizada para usar generateSemanticTerms
+  async buildSemanticQuery(
+    query: string,
+    contextSummary: string,
+    parent: Parent,
+    child: Child,
+  ): Promise<string> {
+    const keywords = getMarkdownFilesRecursively(this.knowledgeBasePath)
+      .map(getKeywordFromFilePath)
+      .join(', ');
+
+    const terms = await this.generateSemanticTerms(
+      query,
+      contextSummary,
+      keywords,
+    );
+
+    // Monta uma query combinada, mantendo voz original e incluindo termos relacionados
+    const childAgeText = getChildAgeText(child);
+
+    const combinedQuery = `
+      ${query.trim()}.
+      Termos relacionados: ${terms.join(', ')}.
+      Informação sobre a criança: nome ${child.name}, idade ${childAgeText}.
+    `
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return combinedQuery;
   }
 }
