@@ -8,6 +8,9 @@ import { Child } from '../children/entities/child.entity';
 import { Knowledge } from '../knowledges/entities/knowledge.entity';
 import { getMarkdownFilesRecursively } from '../common/utils/getMarkdownFilesRecursively';
 import { join } from 'path';
+import { getChildAgeText } from '../common/utils/getChildAgeText';
+import { getKeywordFromFilePath } from '../common/utils/getKeywordFromFilePath';
+import { getFormattedFoundDocuments } from '../common/utils/getFormattedFoundDocuments';
 
 @Injectable()
 export class GeminiAiService {
@@ -17,6 +20,7 @@ export class GeminiAiService {
   private semanticQueryModelName: string;
   private matchThreshold: number;
   private documentsCount: number;
+  private knowledgeBasePath = join(process.cwd(), 'knowledge-base');
   private readonly logger = new Logger(GeminiAiService.name);
 
   constructor(
@@ -44,7 +48,7 @@ export class GeminiAiService {
       Number(this.configService.get<string>('MATCH_THRESHOLD')) || 0.75;
 
     this.documentsCount = getMarkdownFilesRecursively(
-      join(process.cwd(), 'knowledge-base'),
+      this.knowledgeBasePath,
     ).length;
   }
 
@@ -57,6 +61,8 @@ export class GeminiAiService {
       const questionText = await this.buildSemanticQuery(
         query,
         parent.contextSummary,
+        parent,
+        child,
       );
       this.logger.log(`\n\nConsulta semântica gerada: "${questionText}"\n\n`);
 
@@ -70,26 +76,20 @@ export class GeminiAiService {
       });
 
       this.logger.log(`\n\n${documents.length} documentos encontrados.\n\n`);
-
+      this.logger.log(getFormattedFoundDocuments(documents));
+      
       const contextText = documents
         .map((doc: Knowledge) => doc.content)
         .join('\n\n---\n\n');
 
-      const childMonths =
-        (new Date().getFullYear() - child.birthDate.getFullYear()) * 12 +
-        (new Date().getMonth() - child.birthDate.getMonth());
-
-      const childAgeText =
-        childMonths > 12
-          ? `${Math.floor(childMonths / 12)} anos${childMonths % 12 > 0 ? ` e ${childMonths % 12} meses` : ''}`
-          : `${childMonths} meses`;
+      const childAgeText = getChildAgeText(child);
 
       const prompt = `
         Você é um assistente virtual especialista em sono infantil e desenvolvimento de bebês. Sua missão é ajudar pais e mães com informações claras, empáticas e baseadas em evidências científicas, sempre em português do Brasil.
         
         INSTRUÇÕES IMPORTANTES:
         - Use **exclusivamente** as informações fornecidas nos campos CONTEXTO e HISTÓRICO DA CONVERSA abaixo para formular sua resposta.
-        - Se o contexto não for encontrado ou não for suficiente, responda que não há dados suficientes para responder à pergunta em sua base de dados.
+        - Se não houver informações suficientes no CONTEXTO, diga que não é possível responder com base nos dados disponíveis.
         - **Não invente informações**. Responda apenas com base no conteúdo fornecido.
         - Trate a criança como se você já a conhecesse: o nome dela é **${child.name}**, tem **${childAgeText}**, e o responsável que está conversando com você é **${parent.name}**.
         - Use o campo HISTÓRICO DA CONVERSA para **dar continuidade à conversa de forma natural**.
@@ -179,6 +179,7 @@ export class GeminiAiService {
         - A **base de dados utilizada** pela IA para gerar a resposta (se houver).
       - **Não invente informações** que não tenham sido mencionadas.
       - Deixe claro no resumo informações sobre a criança, como nome e idade, para que a IA possa se referir a elas em interações futuras.
+      - Retorne o resultado em formato de string separando cada interação com quebras de linha e sempre inclua o timestamp de cada interação.
 
       --------------------
       TIMESTAMP DA INTERAÇÃO ATUAL:
@@ -229,17 +230,27 @@ export class GeminiAiService {
   async buildSemanticQuery(
     query: string,
     contextSummary: string,
+    parent: Parent,
+    child: Child,
   ): Promise<string> {
+    const keywords = getMarkdownFilesRecursively(this.knowledgeBasePath).map(getKeywordFromFilePath).join(', ')
     const prompt = `
       Você é responsável por gerar uma consulta semântica otimizada para recuperar informações de uma base de conhecimento.
 
       INSTRUÇÕES IMPORTANTES:
+      - IMPORTANTE: Responda com apenas uma frase, sem adicionar introduções ou explicações.
       - Reescreva a pergunta do usuário em uma forma clara, objetiva e completa.
       - Inclua termos relacionados e sinônimos que aumentem a chance de encontrar documentos relevantes.
       - Leve em consideração o **HISTÓRICO DA CONVERSA** para manter a coerência do contexto.
       - A consulta deve ser curta, mas precisa (máximo 2 frases).
       - Não invente informações que não estejam na pergunta ou no contexto.
+      - Inclua as informações relevantes na query sabendo que o usuário esta falando sobre seu filho e que o nome da criança é **${child.name}**, tem **${getChildAgeText(child)}**, e o responsável que está conversando com você é **${parent.name}**.
+      - Inclua na consulta termos que aumentem a chance de encontrar documentos com os títulos listados em PALAVRAS CHAVE.
+      - Otimize a query para ser utilizada em uma função de match documents em um sistema de RAG.
       - Escreva sempre em português do Brasil.
+      - Utilize o campo HISTÓRICO DA CONVERSA para indentificar palavras chaves sobre o assunto que esta sendo conversado e leve isso em conta ao gerar a consulta semantica.
+      - Gere uma versão semanticamente otimizada da pergunta do usuário, mantendo a voz original (primeira pessoa), e retornando apenas a frase final sem explicações adicionais.
+
 
       --------------------
       HISTÓRICO DA CONVERSA:
@@ -247,11 +258,16 @@ export class GeminiAiService {
       --------------------
 
       --------------------
+      PALAVRAS CHAVE:
+      ${keywords}
+      --------------------
+
+      --------------------
       PERGUNTA ORIGINAL DO USUÁRIO:
       ${query}
       --------------------
 
-      Gere uma versão semanticamente otimizada da pergunta do usuário:
+      Retorne apenas a pergunta reescrita, sem títulos ou explicações.
     `.trim();
 
     try {
