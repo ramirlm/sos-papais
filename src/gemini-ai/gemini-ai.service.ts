@@ -77,7 +77,7 @@ export class GeminiAiService {
 
       this.logger.log(`\n\n${documents.length} documentos encontrados.\n\n`);
       this.logger.log(getFormattedFoundDocuments(documents));
-      
+
       const contextText = documents
         .map((doc: Knowledge) => doc.content)
         .join('\n\n---\n\n');
@@ -227,47 +227,25 @@ export class GeminiAiService {
     }
   }
 
-  async buildSemanticQuery(
+  // Nova função para gerar termos semânticos relacionados
+  async generateSemanticTerms(
     query: string,
     contextSummary: string,
-    parent: Parent,
-    child: Child,
-  ): Promise<string> {
-    const keywords = getMarkdownFilesRecursively(this.knowledgeBasePath).map(getKeywordFromFilePath).join(', ')
+    keywords: string,
+  ): Promise<string[]> {
     const prompt = `
-      Você é responsável por gerar uma consulta semântica otimizada para recuperar informações de uma base de conhecimento.
+      Você é um assistente que gera palavras-chave e frases curtas relacionadas a um tema para melhorar a busca em uma base de conhecimento.
 
-      INSTRUÇÕES IMPORTANTES:
-      - IMPORTANTE: Responda com apenas uma frase, sem adicionar introduções ou explicações.
-      - Reescreva a pergunta do usuário em uma forma clara, objetiva e completa.
-      - Inclua termos relacionados e sinônimos que aumentem a chance de encontrar documentos relevantes.
-      - Leve em consideração o **HISTÓRICO DA CONVERSA** para manter a coerência do contexto.
-      - A consulta deve ser curta, mas precisa (máximo 2 frases).
-      - Não invente informações que não estejam na pergunta ou no contexto.
-      - Inclua as informações relevantes na query sabendo que o usuário esta falando sobre seu filho e que o nome da criança é **${child.name}**, tem **${getChildAgeText(child)}**, e o responsável que está conversando com você é **${parent.name}**.
-      - Inclua na consulta termos que aumentem a chance de encontrar documentos com os títulos listados em PALAVRAS CHAVE.
-      - Otimize a query para ser utilizada em uma função de match documents em um sistema de RAG.
-      - Escreva sempre em português do Brasil.
-      - Utilize o campo HISTÓRICO DA CONVERSA para indentificar palavras chaves sobre o assunto que esta sendo conversado e leve isso em conta ao gerar a consulta semantica.
-      - Gere uma versão semanticamente otimizada da pergunta do usuário, mantendo a voz original (primeira pessoa), e retornando apenas a frase final sem explicações adicionais.
+      INSTRUÇÕES:
+      - Baseie-se na pergunta do usuário e no histórico da conversa.
+      - Retorne uma lista de termos, palavras e expressões relacionadas que ajudem a encontrar documentos relevantes.
+      - Separe os termos por vírgula, sem explicações adicionais.
 
+      Pergunta do usuário: ${query}
+      Histórico da conversa: ${contextSummary || 'Nenhum histórico disponível.'}
+      Palavras-chave da base: ${keywords}
 
-      --------------------
-      HISTÓRICO DA CONVERSA:
-      ${contextSummary || 'Nenhum histórico foi encontrado.'}
-      --------------------
-
-      --------------------
-      PALAVRAS CHAVE:
-      ${keywords}
-      --------------------
-
-      --------------------
-      PERGUNTA ORIGINAL DO USUÁRIO:
-      ${query}
-      --------------------
-
-      Retorne apenas a pergunta reescrita, sem títulos ou explicações.
+      Retorne apenas a lista de termos.
     `.trim();
 
     try {
@@ -276,14 +254,48 @@ export class GeminiAiService {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
 
-      const semanticQuery = completion?.text?.trim() || query;
-      return semanticQuery;
+      const termsText = completion?.text?.trim() || '';
+      return termsText
+        .split(',')
+        .map((term) => term.trim())
+        .filter(Boolean);
     } catch (error) {
       this.logger.error(
-        `Erro ao gerar consulta semântica: ${error.message}`,
+        `Erro ao gerar termos semânticos: ${error.message}`,
         error.stack,
       );
-      return query;
+      return [];
     }
+  }
+
+  // Função buildSemanticQuery atualizada para usar generateSemanticTerms
+  async buildSemanticQuery(
+    query: string,
+    contextSummary: string,
+    parent: Parent,
+    child: Child,
+  ): Promise<string> {
+    const keywords = getMarkdownFilesRecursively(this.knowledgeBasePath)
+      .map(getKeywordFromFilePath)
+      .join(', ');
+
+    const terms = await this.generateSemanticTerms(
+      query,
+      contextSummary,
+      keywords,
+    );
+
+    // Monta uma query combinada, mantendo voz original e incluindo termos relacionados
+    const childAgeText = getChildAgeText(child);
+
+    const combinedQuery = `
+      ${query.trim()}.
+      Termos relacionados: ${terms.join(', ')}.
+      Informação sobre a criança: nome ${child.name}, idade ${childAgeText}.
+    `
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return combinedQuery;
   }
 }
