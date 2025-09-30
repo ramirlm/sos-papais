@@ -15,6 +15,37 @@ export class KnowledgeEmbeddingService {
     private readonly knowledgeService: KnowledgesService,
   ) {}
 
+  splitTextIntoChunks(text, maxChunkSize = 1000) {
+    const paragraphs = text.split(/\n\s*\n/); // separa por parágrafos (linhas vazias)
+    const chunks: string[] = [];
+    let currentChunk = '';
+
+    for (const para of paragraphs) {
+      if ((currentChunk + para).length > maxChunkSize) {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+        }
+        // Se o parágrafo for maior que o maxChunkSize, quebra ele diretamente
+        if (para.length > maxChunkSize) {
+          for (let i = 0; i < para.length; i += maxChunkSize) {
+            chunks.push(para.slice(i, i + maxChunkSize).trim());
+          }
+        } else {
+          currentChunk = para + '\n\n';
+        }
+      } else {
+        currentChunk += para + '\n\n';
+      }
+    }
+
+    if (currentChunk) {
+      chunks.push(currentChunk.trim());
+    }
+
+    return chunks;
+  }
+
   async embedKnowledgeBase() {
     const files = getMarkdownFilesRecursively(this.knowledgeBasePath);
 
@@ -35,11 +66,22 @@ export class KnowledgeEmbeddingService {
       const content = fs.readFileSync(file, 'utf-8');
       const fileName = file.replace(this.knowledgeBasePath + '/', '');
 
-      console.log(`Vetorizando o arquivo: ${fileName}`);
-      const embedding = await this.embeddingService.generateEmbedding(content);
-      await this.knowledgeService.insertKnowledge({ content, embedding });
+      console.log(`\nQuebrando o arquivo em chunks: ${fileName}`);
+      const chunks = this.splitTextIntoChunks(content);
+
+      for (const [index, chunk] of chunks.entries()) {
+        console.log(
+          `Vetorizando chunk ${index + 1}/${chunks.length} do arquivo: ${fileName}`,
+        );
+        const embedding = await this.embeddingService.generateEmbedding(chunk);
+        await this.knowledgeService.insertKnowledge({
+          content: chunk,
+          embedding,
+        });
+      }
     }
 
     console.log('Vetorização concluída.');
+    KnowledgeEmbeddingService.startedEmbedding = false;
   }
 }
