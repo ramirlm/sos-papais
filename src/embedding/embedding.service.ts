@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { pipeline } from '@xenova/transformers';
 
 @Injectable()
 export class EmbeddingService implements OnModuleInit {
@@ -14,17 +13,18 @@ export class EmbeddingService implements OnModuleInit {
   }
 
   async init() {
-    if (!this.embedder) {
-      this.logger.log(`🔄 Carregando modelo de embeddings: ${this.modelName}`);
-      try {
-        this.embedder = await pipeline('feature-extraction', this.modelName);
-        this.logger.log('✅ Modelo de embeddings carregado com sucesso!');
-      } catch (error) {
-        this.logger.error('❌ Erro ao carregar o modelo de embeddings', error);
-        throw error;
-      }
+  if (!this.embedder) {
+    this.logger.log(`🔄 Carregando modelo de embeddings: ${this.modelName}`);
+    try {
+      const { pipeline } = await import('@xenova/transformers');
+      this.embedder = await pipeline('feature-extraction', this.modelName);
+      this.logger.log('✅ Modelo de embeddings carregado com sucesso!');
+    } catch (error) {
+      this.logger.error('❌ Erro ao carregar o modelo de embeddings', error);
+      throw error;
     }
   }
+}
 
   // Função para formatar texto curto (importante para queries curtas!)
   private wrapText(text: string): string {
