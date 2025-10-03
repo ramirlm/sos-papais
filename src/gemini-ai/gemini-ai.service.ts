@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { KnowledgesService } from '../knowledges/knowledges.service';
-import { EmbeddingService } from '../embedding/embedding.service';
+// import { EmbeddingService } from '../embedding/embedding.service';
 import { Parent } from '../parents/entities/parent.entity';
 import { Child } from '../children/entities/child.entity';
 import { Knowledge } from '../knowledges/entities/knowledge.entity';
@@ -25,7 +25,7 @@ export class GeminiAiService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly embeddingService: EmbeddingService,
+    // private readonly embeddingService: EmbeddingService,
     private readonly knowledgeService: KnowledgesService,
   ) {
     this.ai = new GoogleGenAI({
@@ -66,8 +66,22 @@ export class GeminiAiService {
       );
       this.logger.log(`\n\nConsulta semântica gerada: "${questionText}"\n\n`);
 
-      const queryEmbedding =
-        await this.embeddingService.generateEmbedding(questionText);
+      // const queryEmbedding =
+      //   await this.embeddingService.generateEmbedding(questionText);
+
+      const job = await this.ai.batches.createEmbeddings({
+        src: {
+          inlinedRequests: {
+            contents: { parts: [{ text: questionText }] },
+          },
+        },
+      });
+
+      const result = await this.ai.batches.get({name: job.name!})
+
+      const queryEmbedding = result.dest?.inlinedEmbedContentResponses as number[]
+
+      console.log(queryEmbedding)
 
       const documents = await this.knowledgeService.matchDocuments({
         queryEmbedding,

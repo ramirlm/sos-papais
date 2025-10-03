@@ -1,12 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { pipeline } from '@xenova/transformers';
 
 @Injectable()
 export class EmbeddingService implements OnModuleInit {
   private readonly logger = new Logger(EmbeddingService.name);
   private embedder: any;
-
-  // Modelo pode ser facilmente trocado aqui
   private readonly modelName = 'Xenova/bge-large-en-v1.5';
 
   async onModuleInit() {
@@ -17,7 +14,14 @@ export class EmbeddingService implements OnModuleInit {
     if (!this.embedder) {
       this.logger.log(`🔄 Carregando modelo de embeddings: ${this.modelName}`);
       try {
-        this.embedder = await pipeline('feature-extraction', this.modelName);
+        const { pipeline } = await import('@xenova/transformers');
+
+        this.embedder = await pipeline('feature-extraction', this.modelName, {
+          local_files_only: false,
+          cache_dir: '/tmp',
+          revision: 'main',
+        });
+
         this.logger.log('✅ Modelo de embeddings carregado com sucesso!');
       } catch (error) {
         this.logger.error('❌ Erro ao carregar o modelo de embeddings', error);
@@ -26,7 +30,6 @@ export class EmbeddingService implements OnModuleInit {
     }
   }
 
-  // Função para formatar texto curto (importante para queries curtas!)
   private wrapText(text: string): string {
     return `Representação semântica: ${text}`;
   }
